@@ -11,6 +11,6 @@ router.post("/images/upscale", authV3ApiKey([1, 3]), rateLimiter, apiv3Controlle
 router.post("/videos/create", authV3ApiKey([1, 3]), rateLimiter, apiv3Controller.videoFlow);
 router.post("/videos/upscale", authV3ApiKey([1, 3]), rateLimiter, apiv3Controller.upscaleVideoFlow);
 router.post("/enhance-photo", authV3ApiKey([1, 3]), rateLimiter, apiv3Controller.enhancePhotoVer);
-router.get("/task", authV3ApiKey([1, 3]), apiv3Controller.getTask);
+router.get("/task",  apiv3Controller.getTask);
 
 module.exports = router;

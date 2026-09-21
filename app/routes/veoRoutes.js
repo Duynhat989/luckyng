@@ -15,7 +15,7 @@ router.get("/token-aval", authJwtOrApiKey([1, 3]), veoController.getTokenAval);
 
 router.post("/create-flow", authJwtOrApiKey([1, 3], { countUsage: true }), veoController.createVideoVeo3);
 
-router.get("/task-status", authJwtOrApiKey([1, 3]), veoController.getTaskStatus);
+router.get("/task-status", veoController.getTaskStatus);
 
 router.post("/check-by-pass", authJwtOrApiKey([1, 3]), veoController.checkTokenByPass);
 
