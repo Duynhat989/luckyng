@@ -1,4 +1,5 @@
-const { Setup } = require("../models");
+const { getSetupValue } = require("../services/setupCache.service");
+const { getRuntimeStats } = require("../services/apiKeyRuntime.service");
 const { TokenCaptchaManager } = require("../modules/captcha.module");
 const { veo3Video } = require("../modules/veo3.module.js");
 const { v4: uuidv4 } = require("uuid"); // Import UUID
@@ -429,20 +430,16 @@ const checkTokenByPass = async (req, res) => {
                 "useV2ModelConfig": true
             }
             const flow_url = "https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText";
-            const setups = await Setup.findOne({
-                where: {
-                    name: 'API_KEY'
-                }
-            });
+            const apiKeyValue = await getSetupValue("API_KEY");
 
-            if (!setups) {
+            if (!apiKeyValue) {
                 return res.status(403).json({
                     success: true,
                     code: "captcha",
                     message: 'Captcha Veo hết hạn'
                 });
             }
-            var veo3 = new veo3Video(setups.value, false);
+            var veo3 = new veo3Video(apiKeyValue, false);
             const result = await veo3.generateVideo(body_json, flow_url);
             if (JSON.stringify(result).includes("reCAPTCHA")) {
                 console.log("Captcha failed")
@@ -487,7 +484,8 @@ const getHope = async (req, res) => {
         queue: veoQueue.length,
         countTasks: countTasks,
         countTokenNumber: countTokenNumber,
-        logs: logsData
+        logs: logsData,
+        runtime: getRuntimeStats(),
     })
 }
 const clearTemplate = async (req, res) => {

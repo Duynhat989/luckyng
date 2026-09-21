@@ -118,5 +118,21 @@ app.use("/api/fix", veoRoutes);
 app.use("/api/setup", setupRoutes);
 app.use("/api/admin", adminRoutes);
 
+const { flushUsageNow, warmKeyCache } = require("./app/services/apiKeyRuntime.service");
+
+async function shutdown() {
+  try {
+    await flushUsageNow();
+  } catch (e) {
+    console.error("Flush usage on shutdown:", e.message);
+  }
+  process.exit(0);
+}
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
+
 const PORT = 2053;
-server.listen(PORT, () => console.log(`Listen: ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Listen: ${PORT}`);
+  warmKeyCache();
+});

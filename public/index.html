@@ -4,209 +4,844 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LuckyNG Admin — API Keys</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0f1419;
-      --surface: #1a2332;
-      --surface2: #243044;
-      --border: #2d3a4f;
-      --text: #e8eef7;
-      --muted: #8b9cb3;
-      --accent: #3b82f6;
-      --accent-hover: #2563eb;
-      --success: #22c55e;
-      --danger: #ef4444;
-      --warn: #f59e0b;
-      --radius: 10px;
+      --bg: #ffffff;
+      --bg-subtle: #f8fafc;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #2563eb;
+      --accent-soft: #eff6ff;
+      --accent-hover: #1d4ed8;
+      --success: #16a34a;
+      --success-bg: #f0fdf4;
+      --danger: #dc2626;
+      --danger-bg: #fef2f2;
+      --warn: #d97706;
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+      --shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+      --radius: 12px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    #loginView[hidden],
+    #appView[hidden] {
+      display: none !important;
+    }
     body {
-      font-family: "DM Sans", system-ui, sans-serif;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      line-height: 1.5;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
     }
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 20px 48px; }
-    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
-    h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; }
-    .muted { color: var(--muted); font-size: 0.875rem; }
-    .card {
-      background: var(--surface);
+    code {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 0.8125rem;
+      background: var(--bg-subtle);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    /* —— Login (full viewport) —— */
+    .login-shell {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      min-height: 100vh;
+      width: 100%;
+    }
+    @media (max-width: 900px) {
+      .login-shell { grid-template-columns: 1fr; }
+      .login-brand { min-height: 220px; padding: 40px 28px !important; }
+    }
+    .login-brand {
+      background: linear-gradient(145deg, #1e40af 0%, #2563eb 45%, #3b82f6 100%);
+      color: #fff;
+      padding: 56px 64px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .login-brand::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 20% 80%, rgba(255,255,255,0.15) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1) 0%, transparent 40%);
+      pointer-events: none;
+    }
+    .login-brand-inner { position: relative; z-index: 1; max-width: 420px; }
+    .login-logo-img {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+      margin-bottom: 24px;
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
+    }
+    .login-brand h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+    .login-brand p {
+      font-size: 1.05rem;
+      opacity: 0.9;
+      line-height: 1.6;
+    }
+    .login-features {
+      margin-top: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .login-feature {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9375rem;
+      opacity: 0.95;
+    }
+    .login-feature-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+    }
+    .login-form-area {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 40px;
+      background: var(--bg);
+    }
+    .login-form-box {
+      width: 100%;
+      max-width: 400px;
+    }
+    .login-form-box h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    .login-form-box .lead {
+      color: var(--muted);
+      font-size: 0.9375rem;
+      margin-bottom: 32px;
+    }
+
+    /* —— App shell (full width) —— */
+    .topbar {
+      width: 100%;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: var(--shadow-sm);
+    }
+    .topbar-inner {
+      width: 100%;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .topbar-title {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .topbar-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      overflow: hidden;
+      flex-shrink: 0;
+      background: #fff;
+      box-shadow: var(--shadow-sm);
+    }
+    .topbar-mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .topbar-title h1 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.02em; }
+    .topbar-title .muted { font-size: 0.8125rem; margin-top: 2px; }
+    .topbar-actions { display: flex; align-items: center; gap: 12px; }
+
+    .nav-tabs {
+      width: 100%;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-subtle);
+      padding: 0 32px;
+      display: flex;
+      gap: 4px;
+    }
+    .tab {
+      padding: 14px 20px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background: var(--bg);
+    }
+
+    .main-full {
+      width: 100%;
+      padding: 28px 32px 48px;
+    }
+    @media (max-width: 640px) {
+      .topbar-inner, .nav-tabs, .main-full { padding-left: 16px; padding-right: 16px; }
+    }
+
+    .panel { display: none; }
+    .panel.active {
+      display: block;
+      animation: panelIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    .section {
+      background: var(--bg);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 24px;
-      margin-top: 20px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
+      overflow: hidden;
     }
-    .login-card { max-width: 400px; margin: 80px auto 0; }
-    label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
+    .section-head {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-subtle);
+    }
+    .section-head h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .section-head p { color: var(--muted); font-size: 0.875rem; }
+    .section-body { padding: 24px; }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
     input, select {
       width: 100%;
-      padding: 10px 12px;
+      padding: 11px 14px;
       border-radius: 8px;
       border: 1px solid var(--border);
-      background: var(--surface2);
+      background: var(--bg);
       color: var(--text);
       font: inherit;
-      margin-bottom: 14px;
+      font-size: 0.9375rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-    input:focus, select:focus { outline: 2px solid var(--accent); border-color: transparent; }
+    input:hover { border-color: var(--border-strong); }
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+    .field { margin-bottom: 20px; }
+    .field-inline input { margin-bottom: 0; }
+
     .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      padding: 10px 18px; border: none; border-radius: 8px; font: inherit; font-weight: 600;
-      cursor: pointer; transition: background 0.15s, opacity 0.15s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
     }
+    .btn:active:not(:disabled) { transform: scale(0.98); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 1px 2px rgba(37, 99, 235, 0.3);
+    }
     .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
-    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-    .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--muted); }
-    .btn-danger { background: rgba(239,68,68,0.15); color: #fca5a5; }
-    .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
-    .header {
-      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
-      padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    .btn-ghost {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
     }
-    .tabs { display: flex; gap: 8px; margin-top: 20px; }
-    .tab {
-      padding: 8px 16px; border-radius: 8px; border: 1px solid transparent;
-      background: transparent; color: var(--muted); cursor: pointer; font: inherit; font-weight: 500;
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--bg-subtle);
+      border-color: var(--border-strong);
     }
-    .tab.active { background: var(--surface2); color: var(--text); border-color: var(--border); }
-    .panel { display: none; }
-    .panel.active { display: block; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
-    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; margin-top: 12px; }
-    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
-    th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
-    tr:hover td { background: rgba(255,255,255,0.02); }
+    .btn-danger {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid #fecaca;
+    }
+    .btn-danger:hover:not(:disabled) { background: #fee2e2; }
+    .btn-sm { padding: 7px 12px; font-size: 0.8125rem; }
+    .btn-block { width: 100%; padding: 12px; }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    th {
+      background: var(--bg-subtle);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+    tbody tr:hover td { background: #fafbfc; }
+    tbody tr:last-child td { border-bottom: none; }
+
     .badge {
-      display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
     }
-    .badge-on { background: rgba(34,197,94,0.15); color: #86efac; }
-    .badge-off { background: rgba(239,68,68,0.15); color: #fca5a5; }
-    .key-cell { font-family ui-monospace, monospace; font-size: 0.75rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+    .badge-on { background: var(--success-bg); color: var(--success); }
+    .badge-off { background: var(--danger-bg); color: var(--danger); }
+
+    .key-cell {
+      font-family: ui-monospace, monospace;
+      font-size: 0.75rem;
+      color: #475569;
+      max-width: 280px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .actions { display: flex; gap: 6px; flex-wrap: wrap; }
-    .toast {
-      position: fixed; bottom: 24px; right: 24px; padding: 12px 18px; border-radius: 8px;
-      background: var(--surface2); border: 1px solid var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-      z-index: 100; animation: fadeIn 0.2s;
-    }
-    .toast.error { border-color: var(--danger); color: #fca5a5; }
-    .toast.success { border-color: var(--success); }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } }
+
     .usage-bar {
-      height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; margin-top: 4px; max-width: 120px;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 6px;
+      max-width: 140px;
     }
-    .usage-bar span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+    .usage-bar span {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
     .usage-bar.warn span { background: var(--warn); }
     .usage-bar.full span { background: var(--danger); }
-    .filter-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 8px; }
-    .filter-row > div { flex: 1; min-width: 140px; }
-    .filter-row label { margin-bottom: 4px; }
-    .filter-row input { margin-bottom: 0; }
-    .empty { text-align: center; padding: 32px; color: var(--muted); }
-    .new-key-banner {
-      margin-top: 16px; padding: 14px; border-radius: 8px;
-      background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.35);
+    .usage-text { font-size: 0.8125rem; font-weight: 500; }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: flex-end;
     }
-    .new-key-banner code { word-break: break-all; font-size: 0.85rem; }
+    .filter-row .field { margin-bottom: 0; flex: 1; min-width: 160px; }
+
+    .empty {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+      font-size: 0.9375rem;
+    }
+    .loading { padding: 24px; color: var(--muted); font-size: 0.875rem; }
+
+    .skeleton-wrap { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
+    .skeleton-line {
+      height: 14px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s ease-in-out infinite;
+    }
+    .skeleton-line.w60 { width: 60%; }
+    .skeleton-line.w80 { width: 80%; }
+    .skeleton-line.w40 { width: 40%; }
+
+    tbody tr.row-animate {
+      animation: rowIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .content-animate {
+      animation: fadeIn 0.4s ease both;
+    }
+    .empty-animate, .empty.content-animate {
+      animation: fadeInUp 0.5s ease both;
+    }
+
+    .new-key-banner.banner-pop {
+      animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+
+    .btn.is-loading {
+      position: relative;
+      color: transparent !important;
+      pointer-events: none;
+    }
+    .btn.is-loading::after {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+    }
+    .btn-ghost.is-loading::after {
+      border-color: rgba(37, 99, 235, 0.25);
+      border-top-color: var(--accent);
+    }
+
+    .login-form-box.shake {
+      animation: shake 0.45s ease;
+    }
+    .login-shell.view-in .login-brand-inner > * {
+      animation: fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .login-shell.view-in .login-brand-inner > *:nth-child(1) { animation-delay: 0.05s; }
+    .login-shell.view-in .login-brand-inner > *:nth-child(2) { animation-delay: 0.1s; }
+    .login-shell.view-in .login-brand-inner > *:nth-child(3) { animation-delay: 0.15s; }
+    .login-shell.view-in .login-brand-inner > *:nth-child(4) { animation-delay: 0.2s; }
+    .login-shell.view-in .login-brand-inner > *:nth-child(5) { animation-delay: 0.25s; }
+    .login-form-box.view-in {
+      animation: fadeInUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+    }
+    #appView.view-in .topbar {
+      animation: slideDown 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    #appView.view-in .nav-tabs {
+      animation: fadeIn 0.4s ease 0.08s both;
+    }
+    #appView.view-in .main-full {
+      animation: fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+    }
+    tr.row-removing {
+      animation: rowOut 0.35s ease forwards;
+    }
+    .btn-success-flash {
+      animation: successFlash 0.6s ease;
+    }
+
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes rowIn {
+      from { opacity: 0; transform: translateX(-8px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes rowOut {
+      to { opacity: 0; transform: translateX(12px); height: 0; padding: 0; }
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.92); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(8px); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(5px); }
+    }
+    @keyframes successFlash {
+      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+      100% { box-shadow: 0 0 0 12px rgba(34, 197, 94, 0); }
+    }
+    @keyframes toastOut {
+      to { opacity: 0; transform: translateY(8px) scale(0.96); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    .new-key-banner {
+      margin-top: 20px;
+      padding: 16px 18px;
+      border-radius: 10px;
+      background: var(--accent-soft);
+      border: 1px solid #bfdbfe;
+    }
+    .new-key-banner strong { font-size: 0.875rem; color: #1e40af; }
+    .new-key-banner code {
+      display: block;
+      margin-top: 10px;
+      padding: 12px;
+      background: #fff;
+      border: 1px solid #bfdbfe;
+      word-break: break-all;
+      font-size: 0.8125rem;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 14px 20px;
+      border-radius: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      z-index: 200;
+      font-size: 0.875rem;
+      font-weight: 500;
+      animation: toastIn 0.25s ease;
+    }
+    .toast.error { border-color: #fecaca; background: var(--danger-bg); color: var(--danger); }
+    .toast.success { border-color: #bbf7d0; background: var(--success-bg); color: #15803d; }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(16px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .toast.toast-out {
+      animation: toastOut 0.25s ease forwards;
+    }
+
+    .form-actions { margin-top: 8px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .quota-info {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      font-size: 0.8125rem;
+    }
+    .quota-info strong { color: var(--text); }
+
+    .hope-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 14px;
+    }
+    .hope-card {
+      padding: 16px 18px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .hope-card.highlight {
+      grid-column: span 1;
+      border-color: #bfdbfe;
+      background: linear-gradient(135deg, #eff6ff 0%, #fff 100%);
+    }
+    @media (min-width: 900px) {
+      .hope-card.highlight { grid-column: span 2; }
+    }
+    .hope-card .label {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .hope-card .value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+    .hope-card .value.success-rate { color: var(--success); }
+    .hope-card .value.warn-rate { color: var(--warn); }
+    .hope-card .value.bad-rate { color: var(--danger); }
+    .hope-card .sub {
+      margin-top: 6px;
+      font-size: 0.8125rem;
+      color: var(--muted);
+    }
+    .hope-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .hope-meta .live-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .hope-meta .live-dot::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulseDot 1.5s ease infinite;
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
   </style>
 </head>
 <body>
-  <div id="loginView" class="wrap">
-    <div class="card login-card">
-      <h1>Admin</h1>
-      <p class="muted" style="margin-top:8px">Đăng nhập để quản lý API key và thống kê</p>
-      <form id="loginForm" style="margin-top:24px">
-        <label for="email">Email</label>
-        <input id="email" type="email" autocomplete="username" required placeholder="admin@example.com">
-        <label for="password">Mật khẩu</label>
-        <input id="password" type="password" autocomplete="current-password" required>
-        <button type="submit" class="btn btn-primary" style="width:100%">Đăng nhập</button>
-      </form>
+  <div id="loginView" class="login-shell">
+    <div class="login-brand">
+      <div class="login-brand-inner">
+        <img class="login-logo-img" src="/logo.png" alt="LuckyNG">
+        <h1>Quản trị API Key</h1>
+        <p>Tạo key, giới hạn lượng gọi theo ngày và theo dõi thống kê sử dụng API Veo.</p>
+        <div class="login-features">
+          <div class="login-feature">
+            <span class="login-feature-icon">🔑</span>
+            <span>Tạo & quản lý API key cho admin</span>
+          </div>
+          <div class="login-feature">
+            <span class="login-feature-icon">📊</span>
+            <span>Thống kê request theo key / ngày</span>
+          </div>
+          <div class="login-feature">
+            <span class="login-feature-icon">🛡️</span>
+            <span>Giới hạn số yêu cầu mỗi ngày</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="login-form-area">
+      <div class="login-form-box view-in">
+        <h2>Đăng nhập</h2>
+        <p class="lead">Chỉ tài khoản quản trị viên được phép truy cập.</p>
+        <form id="loginForm">
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" type="email" autocomplete="username" required placeholder="admin@company.com">
+          </div>
+          <div class="field">
+            <label for="password">Mật khẩu</label>
+            <input id="password" type="password" autocomplete="current-password" required placeholder="••••••••">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" id="loginSubmitBtn">Đăng nhập</button>
+        </form>
+      </div>
     </div>
   </div>
 
-  <div id="appView" class="wrap" hidden>
-    <div class="header">
-      <div>
-        <h1>Quản lý API Key</h1>
-        <p class="muted" id="adminName"></p>
+  <div id="appView" hidden>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="topbar-title">
+          <div class="topbar-mark"><img src="/logo.png" alt="LuckyNG"></div>
+          <div>
+            <h1>API Key Console</h1>
+            <p class="muted" id="adminName"></p>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button type="button" class="btn btn-ghost btn-sm" id="logoutBtn">Đăng xuất</button>
+        </div>
       </div>
-      <button type="button" class="btn btn-ghost btn-sm" id="logoutBtn">Đăng xuất</button>
-    </div>
+    </header>
 
-    <div class="tabs">
+    <nav class="nav-tabs">
       <button type="button" class="tab active" data-tab="keys">API Keys</button>
-      <button type="button" class="tab" data-tab="stats">Thống kê theo user</button>
-    </div>
+      <button type="button" class="tab" data-tab="stats">Thống kê</button>
+    </nav>
 
-    <div id="panelKeys" class="panel active">
-      <div class="card">
-        <h2>Tạo API key mới</h2>
-        <div class="grid-2">
-          <div>
-            <label for="userSearch">Tìm user (email / tên)</label>
-            <input id="userSearch" type="search" placeholder="Gõ ít nhất 3 ký tự...">
+    <main class="main-full">
+      <div id="panelKeys" class="panel active">
+        <section class="section">
+          <div class="section-head">
+            <h2>Tạo API key mới</h2>
+            <p>Key được gắn với tài khoản admin đang đăng nhập. Client gọi API với header <code>x-api-key</code>.</p>
+            <p id="quotaInfo" class="quota-info">Đang tải hạn mức…</p>
           </div>
-          <div>
-            <label for="userSelect">Chọn user</label>
-            <select id="userSelect"><option value="">— Chọn user —</option></select>
+          <div class="section-body">
+            <div class="grid-2">
+              <div class="field">
+                <label for="keyLabel">Nhãn (tuỳ chọn)</label>
+                <input id="keyLabel" type="text" placeholder="VD: Server production">
+              </div>
+              <div class="field">
+                <label for="dailyLimit">Giới hạn yêu cầu / ngày</label>
+                <input id="dailyLimit" type="number" min="1" value="1000">
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-primary" id="createKeyBtn">+ Tạo API key</button>
+            </div>
+            <div id="newKeyBanner" class="new-key-banner" hidden>
+              <strong>Key mới — hãy sao chép và lưu an toàn</strong>
+              <code id="newKeyValue"></code>
+              <button type="button" class="btn btn-ghost btn-sm" style="margin-top:12px" id="copyNewKey">Sao chép key</button>
+            </div>
           </div>
-        </div>
-        <div class="grid-2">
-          <div>
-            <label for="keyLabel">Nhãn (tuỳ chọn)</label>
-            <input id="keyLabel" type="text" placeholder="VD: App mobile KH A">
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h2>Danh sách API key</h2>
+            <p>Tất cả key thuộc tài khoản admin hiện tại.</p>
           </div>
-          <div>
-            <label for="dailyLimit">Giới hạn yêu cầu / ngày</label>
-            <input id="dailyLimit" type="number" min="1" value="1000">
+          <div class="section-body" style="padding:0">
+            <div id="keysTableWrap" class="table-wrap"></div>
           </div>
-        </div>
-        <button type="button" class="btn btn-primary" id="createKeyBtn">Tạo API key</button>
-        <div id="newKeyBanner" class="new-key-banner" hidden>
-          <strong>Key mới — sao chép ngay:</strong>
-          <p style="margin-top:8px"><code id="newKeyValue"></code></p>
-          <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" id="copyNewKey">Sao chép</button>
-        </div>
+        </section>
       </div>
 
-      <div class="card">
-        <h2>Danh sách API key</h2>
-        <div id="keysTableWrap"></div>
-      </div>
-    </div>
+      <div id="panelStats" class="panel">
+        <section class="section" id="hopeSection">
+          <div class="section-head">
+            <div class="hope-meta">
+              <div>
+                <h2>Trạng thái Veo (realtime)</h2>
+              </div>
+              <span class="live-dot" id="hopeUpdatedAt">Mở tab này để cập nhật</span>
+            </div>
+          </div>
+          <div class="section-body">
+            <div class="hope-grid" id="hopeGrid">
+              <div class="hope-card highlight">
+                <div class="label">Tỷ lệ thành công</div>
+                <div class="value" id="hopeSuccessRate">—</div>
+                <div class="sub" id="hopeSuccessSub">Chưa có dữ liệu</div>
+              </div>
+              <div class="hope-card">
+                <div class="label">Thành công</div>
+                <div class="value" id="hopeSuccessCount">0</div>
+              </div>
+              <div class="hope-card">
+                <div class="label">Lỗi</div>
+                <div class="value" id="hopeErrorCount">0</div>
+              </div>
+              <div class="hope-card">
+                <div class="label">Đang xử lý</div>
+                <div class="value" id="hopeProcessing">0</div>
+                <div class="sub">Hàng đợi: <span id="hopeQueue">0</span></div>
+              </div>
+              <div class="hope-card">
+                <div class="label">Token captcha</div>
+                <div class="value" style="font-size:1.25rem" id="hopeTokens">0 / 0</div>
+                <div class="sub">Video / Image</div>
+              </div>
+              <div class="hope-card">
+                <div class="label">Tổng task</div>
+                <div class="value" id="hopeCountTasks">0</div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-    <div id="panelStats" class="panel">
-      <div class="card">
-        <h2>Yêu cầu theo user / ngày</h2>
-        <p class="muted">Thống kê khi client gọi API Veo bằng header <code>x-api-key</code> (múi giờ Việt Nam).</p>
-        <div class="filter-row" style="margin-top:16px">
-          <div>
-            <label for="statFrom">Từ ngày</label>
-            <input id="statFrom" type="date">
+        <section class="section">
+          <div class="section-head">
+            <h2>Thống kê theo API key / ngày</h2>
+            <p>Múi giờ Việt Nam (Asia/Ho_Chi_Minh).</p>
           </div>
-          <div>
-            <label for="statTo">Đến ngày</label>
-            <input id="statTo" type="date">
+          <div class="section-body">
+            <div class="filter-row">
+              <div class="field">
+                <label for="statFrom">Từ ngày</label>
+                <input id="statFrom" type="date">
+              </div>
+              <div class="field">
+                <label for="statTo">Đến ngày</label>
+                <input id="statTo" type="date">
+              </div>
+              <div class="field field-inline">
+                <label>&nbsp;</label>
+                <button type="button" class="btn btn-primary" id="loadStatsBtn">Tải thống kê</button>
+              </div>
+            </div>
+            <div id="statsTableWrap" class="table-wrap" style="margin-top:20px"></div>
           </div>
-          <div>
-            <button type="button" class="btn btn-primary" id="loadStatsBtn">Tải thống kê</button>
-          </div>
-        </div>
-        <div id="statsTableWrap"></div>
+        </section>
       </div>
-    </div>
+    </main>
   </div>
 
   <script>
     const TOKEN_KEY = "luckyng_admin_token";
     const USER_KEY = "luckyng_admin_user";
+    let hopePollTimer = null;
 
     function todayLocal() {
       const d = new Date();
@@ -222,7 +857,50 @@
       el.className = "toast " + (type === "error" ? "error" : "success");
       el.textContent = msg;
       document.body.appendChild(el);
-      setTimeout(() => el.remove(), 3500);
+      const dismiss = () => {
+        el.classList.add("toast-out");
+        el.addEventListener("animationend", () => el.remove(), { once: true });
+        setTimeout(() => el.remove(), 300);
+      };
+      setTimeout(dismiss, 3200);
+    }
+
+    function setButtonLoading(btn, loading) {
+      if (!btn) return;
+      btn.classList.toggle("is-loading", loading);
+      btn.disabled = loading;
+    }
+
+    function skeletonHtml() {
+      return `<div class="skeleton-wrap content-animate">
+        <div class="skeleton-line w80"></div>
+        <div class="skeleton-line w60"></div>
+        <div class="skeleton-line w40"></div>
+      </div>`;
+    }
+
+    function playViewIn(id, className) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove(className);
+      void el.offsetWidth;
+      el.classList.add(className);
+    }
+
+    async function withButtonAction(btn, action) {
+      setButtonLoading(btn, true);
+      try {
+        await action();
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    function shakeLoginForm() {
+      const box = document.querySelector(".login-form-box");
+      box.classList.remove("shake");
+      void box.offsetWidth;
+      box.classList.add("shake");
     }
 
     async function api(path, options = {}) {
@@ -240,11 +918,26 @@
       return data;
     }
 
+    function stopHopePolling() {
+      if (hopePollTimer) {
+        clearInterval(hopePollTimer);
+        hopePollTimer = null;
+      }
+    }
+
+    function startHopePolling() {
+      stopHopePolling();
+      loadHopeStats();
+      hopePollTimer = setInterval(loadHopeStats, 5000);
+    }
+
     function showLogin() {
+      stopHopePolling();
       document.getElementById("loginView").hidden = false;
       document.getElementById("appView").hidden = true;
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
+      playViewIn("loginView", "view-in");
     }
 
     function showApp(user) {
@@ -253,67 +946,107 @@
       document.getElementById("adminName").textContent = user.name + " · " + user.email;
       document.getElementById("statFrom").value = todayLocal();
       document.getElementById("statTo").value = todayLocal();
+      playViewIn("appView", "view-in");
       loadKeys();
+    }
+
+    async function loadHopeStats() {
+      const updatedEl = document.getElementById("hopeUpdatedAt");
+      const rateEl = document.getElementById("hopeSuccessRate");
+      try {
+        const data = await api("/api/fix/request-hope");
+        const success = data.logs?.success ?? 0;
+        const error = data.logs?.error ?? 0;
+        const total = success + error;
+        let rateText = "—";
+        let rateClass = "";
+        if (total > 0) {
+          const pct = (success / total) * 100;
+          rateText = pct.toFixed(1) + "%";
+          rateClass = pct >= 80 ? "success-rate" : pct >= 50 ? "warn-rate" : "bad-rate";
+        }
+        rateEl.textContent = rateText;
+        rateEl.className = "value " + rateClass;
+        document.getElementById("hopeSuccessSub").textContent =
+          total > 0 ? `${formatNum(success)} / ${formatNum(total)} request hoàn tất` : "Chưa có request hoàn tất";
+        document.getElementById("hopeSuccessCount").textContent = formatNum(success);
+        document.getElementById("hopeErrorCount").textContent = formatNum(error);
+        document.getElementById("hopeProcessing").textContent = formatNum(data.processing ?? 0);
+        document.getElementById("hopeQueue").textContent = formatNum(data.queue ?? 0);
+        document.getElementById("hopeTokens").textContent =
+          `${formatNum(data.valiVideo ?? 0)} / ${formatNum(data.valiImage ?? 0)}`;
+        document.getElementById("hopeCountTasks").textContent = formatNum(data.countTasks ?? 0);
+        const now = new Date();
+        updatedEl.textContent = "Cập nhật " + now.toLocaleTimeString("vi-VN");
+      } catch (err) {
+        updatedEl.textContent = "Không tải được dữ liệu";
+        if (err.status === 401) showLogin();
+      }
     }
 
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
-      try {
-        const res = await api("/api/auth/login", {
-          method: "POST",
-          body: JSON.stringify({ email, password }),
-        });
-        if (!res.success || !res.data?.token) throw new Error("Đăng nhập thất bại");
-        if (res.data.role !== 1) {
-          toast("Chỉ tài khoản admin (role 1) được truy cập", "error");
-          return;
+      const loginBtn = document.getElementById("loginSubmitBtn");
+      await withButtonAction(loginBtn, async () => {
+        try {
+          const res = await api("/api/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ email, password }),
+          });
+          if (!res.success || !res.data?.token) throw new Error("Đăng nhập thất bại");
+          if (res.data.role !== 1) {
+            toast("Chỉ tài khoản admin (role 1) được truy cập", "error");
+            shakeLoginForm();
+            return;
+          }
+          localStorage.setItem(TOKEN_KEY, res.data.token);
+          const profile = { name: res.data.name || email, email: email };
+          localStorage.setItem(USER_KEY, JSON.stringify(profile));
+          showApp(profile);
+          toast("Đăng nhập thành công");
+        } catch (err) {
+          shakeLoginForm();
+          toast(err.message || "Sai email hoặc mật khẩu", "error");
         }
-        localStorage.setItem(TOKEN_KEY, res.data.token);
-        const profile = { name: res.data.name || email, email: email };
-        localStorage.setItem(USER_KEY, JSON.stringify(profile));
-        showApp(profile);
-        toast("Đăng nhập thành công");
-      } catch (err) {
-        toast(err.message || "Sai email hoặc mật khẩu", "error");
-      }
+      });
     });
 
     document.getElementById("logoutBtn").addEventListener("click", showLogin);
 
     document.querySelectorAll(".tab").forEach((btn) => {
       btn.addEventListener("click", () => {
+        if (btn.classList.contains("active")) return;
         document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
         document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
         btn.classList.add("active");
-        document.getElementById("panel" + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1)).classList.add("active");
-        if (btn.dataset.tab === "stats") loadStats();
+        const panelId = "panel" + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1);
+        const panel = document.getElementById(panelId);
+        panel.classList.add("active");
+        void panel.offsetWidth;
+        if (btn.dataset.tab === "stats") {
+          startHopePolling();
+          loadStats();
+        } else {
+          stopHopePolling();
+        }
       });
     });
 
-    let searchTimer;
-    document.getElementById("userSearch").addEventListener("input", () => {
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(loadUsers, 400);
-    });
+    function formatNum(n) {
+      return Number(n || 0).toLocaleString("vi-VN");
+    }
 
-    async function loadUsers() {
-      const q = document.getElementById("userSearch").value.trim();
-      const sel = document.getElementById("userSelect");
-      if (q.length < 3) return;
-      try {
-        const res = await api("/api/users?limit=30&search=" + encodeURIComponent(q));
-        const rows = res.data || [];
-        sel.innerHTML = '<option value="">— Chọn user —</option>';
-        rows.forEach((u) => {
-          const opt = document.createElement("option");
-          opt.value = u.id;
-          opt.textContent = `${u.name || "—"} · ${u.email} (id: ${u.id})`;
-          sel.appendChild(opt);
-        });
-      } catch (err) {
-        toast(err.message, "error");
+    function updateQuotaUI(quota) {
+      const el = document.getElementById("quotaInfo");
+      if (!el || !quota) return;
+      el.innerHTML =
+        `<strong>Hạn mức tổng/ngày:</strong> ${formatNum(quota.allocated)} / ${formatNum(quota.maxPerDay)} ` +
+        `(còn <strong>${formatNum(quota.remaining)}</strong> có thể phân bổ cho các key)`;
+      const limitInput = document.getElementById("dailyLimit");
+      if (limitInput && quota.remaining > 0) {
+        limitInput.max = quota.remaining;
       }
     }
 
@@ -326,32 +1059,32 @@
 
     async function loadKeys() {
       const wrap = document.getElementById("keysTableWrap");
-      wrap.innerHTML = '<p class="muted">Đang tải...</p>';
+      wrap.innerHTML = skeletonHtml();
       try {
         const res = await api("/api/admin/api-keys");
+        if (res.quota) updateQuotaUI(res.quota);
         const rows = res.data || [];
         if (!rows.length) {
-          wrap.innerHTML = '<div class="empty">Chưa có API key nào</div>';
+          wrap.innerHTML = '<div class="empty empty-animate">Chưa có API key nào — tạo key đầu tiên ở trên.</div>';
           return;
         }
-        let html = `<table><thead><tr>
-          <th>User</th><th>Nhãn</th><th>Key</th><th>Hôm nay</th><th>Giới hạn/ngày</th><th>Trạng thái</th><th></th>
+        let html = `<table class="content-animate"><thead><tr>
+          <th>Nhãn</th><th>Key</th><th>Hôm nay</th><th>Giới hạn / ngày</th><th>Trạng thái</th><th>Thao tác</th>
         </tr></thead><tbody>`;
-        rows.forEach((k) => {
+        rows.forEach((k, i) => {
           const pct = Math.min(100, (k.todayUsage / k.dailyLimit) * 100);
-          html += `<tr>
-            <td>${escapeHtml(k.owner?.name || "—")}<br><span class="muted">${escapeHtml(k.owner?.email || "")}</span></td>
-            <td>${escapeHtml(k.label || "—")}</td>
+          html += `<tr class="row-animate" style="animation-delay:${Math.min(i * 45, 400)}ms">
+            <td><strong>${escapeHtml(k.label || "—")}</strong></td>
             <td class="key-cell" title="${escapeHtml(k.keyValue)}">${escapeHtml(k.keyValue)}</td>
             <td>
-              ${k.todayUsage} / ${k.dailyLimit}
+              <span class="usage-text">${k.todayUsage} / ${k.dailyLimit}</span>
               <div class="usage-bar ${usageClass(k.todayUsage, k.dailyLimit)}"><span style="width:${pct}%"></span></div>
             </td>
-            <td><input type="number" min="1" value="${k.dailyLimit}" data-limit-id="${k.id}" style="margin:0;width:90px"></td>
-            <td><span class="badge ${k.status === 1 ? "badge-on" : "badge-off"}">${k.status === 1 ? "Bật" : "Tắt"}</span></td>
+            <td><input type="number" min="1" value="${k.dailyLimit}" data-limit-id="${k.id}" style="margin:0;width:100px"></td>
+            <td><span class="badge ${k.status === 1 ? "badge-on" : "badge-off"}">${k.status === 1 ? "Đang bật" : "Đã tắt"}</span></td>
             <td class="actions">
               <button class="btn btn-ghost btn-sm" data-copy="${escapeHtml(k.keyValue)}">Copy</button>
-              <button class="btn btn-ghost btn-sm" data-save-limit="${k.id}">Lưu limit</button>
+              <button class="btn btn-ghost btn-sm" data-save-limit="${k.id}">Lưu</button>
               <button class="btn btn-ghost btn-sm" data-toggle="${k.id}" data-status="${k.status}">${k.status === 1 ? "Tắt" : "Bật"}</button>
               <button class="btn btn-danger btn-sm" data-del="${k.id}">Xóa</button>
             </td>
@@ -361,10 +1094,14 @@
         wrap.innerHTML = html;
 
         wrap.querySelectorAll("[data-copy]").forEach((btn) => {
-          btn.addEventListener("click", () => copyText(btn.getAttribute("data-copy")));
+          btn.addEventListener("click", () => {
+            copyText(btn.getAttribute("data-copy"));
+            btn.classList.add("btn-success-flash");
+            setTimeout(() => btn.classList.remove("btn-success-flash"), 600);
+          });
         });
         wrap.querySelectorAll("[data-save-limit]").forEach((btn) => {
-          btn.addEventListener("click", async () => {
+          btn.addEventListener("click", () => withButtonAction(btn, async () => {
             const id = btn.getAttribute("data-save-limit");
             const input = wrap.querySelector(`[data-limit-id="${id}"]`);
             try {
@@ -377,10 +1114,10 @@
             } catch (err) {
               toast(err.message, "error");
             }
-          });
+          }));
         });
         wrap.querySelectorAll("[data-toggle]").forEach((btn) => {
-          btn.addEventListener("click", async () => {
+          btn.addEventListener("click", () => withButtonAction(btn, async () => {
             const id = btn.getAttribute("data-toggle");
             const cur = parseInt(btn.getAttribute("data-status"), 10);
             const next = cur === 1 ? 2 : 1;
@@ -389,22 +1126,30 @@
                 method: "PATCH",
                 body: JSON.stringify({ status: next }),
               });
+              toast(next === 1 ? "Đã bật key" : "Đã tắt key");
               loadKeys();
             } catch (err) {
               toast(err.message, "error");
             }
-          });
+          }));
         });
         wrap.querySelectorAll("[data-del]").forEach((btn) => {
           btn.addEventListener("click", async () => {
             if (!confirm("Xóa API key này?")) return;
-            try {
-              await api("/api/admin/api-keys/" + btn.getAttribute("data-del"), { method: "DELETE" });
-              toast("Đã xóa");
-              loadKeys();
-            } catch (err) {
-              toast(err.message, "error");
-            }
+            const row = btn.closest("tr");
+            await withButtonAction(btn, async () => {
+              try {
+                await api("/api/admin/api-keys/" + btn.getAttribute("data-del"), { method: "DELETE" });
+                if (row) {
+                  row.classList.add("row-removing");
+                  await new Promise((r) => setTimeout(r, 320));
+                }
+                toast("Đã xóa");
+                loadKeys();
+              } catch (err) {
+                toast(err.message, "error");
+              }
+            });
           });
         });
       } catch (err) {
@@ -413,62 +1158,67 @@
       }
     }
 
-    document.getElementById("createKeyBtn").addEventListener("click", async () => {
-      const userId = document.getElementById("userSelect").value;
+    document.getElementById("createKeyBtn").addEventListener("click", () => {
+      const btn = document.getElementById("createKeyBtn");
       const label = document.getElementById("keyLabel").value.trim();
       const dailyLimit = document.getElementById("dailyLimit").value;
-      if (!userId) {
-        toast("Chọn user trước khi tạo key", "error");
-        return;
-      }
-      try {
-        const res = await api("/api/admin/api-keys", {
-          method: "POST",
-          body: JSON.stringify({ userId, label, dailyLimit }),
-        });
-        document.getElementById("newKeyValue").textContent = res.data.keyValue;
-        document.getElementById("newKeyBanner").hidden = false;
-        toast("Tạo API key thành công");
-        loadKeys();
-      } catch (err) {
-        toast(err.message, "error");
-      }
+      withButtonAction(btn, async () => {
+        try {
+          const res = await api("/api/admin/api-keys", {
+            method: "POST",
+            body: JSON.stringify({ label, dailyLimit }),
+          });
+          const banner = document.getElementById("newKeyBanner");
+          document.getElementById("newKeyValue").textContent = res.data.keyValue;
+          banner.hidden = false;
+          banner.classList.remove("banner-pop");
+          void banner.offsetWidth;
+          banner.classList.add("banner-pop");
+          toast("Tạo API key thành công");
+          loadKeys();
+        } catch (err) {
+          toast(err.message, "error");
+        }
+      });
     });
 
     document.getElementById("copyNewKey").addEventListener("click", () => {
       copyText(document.getElementById("newKeyValue").textContent);
     });
 
-    async function loadStats() {
+    async function loadStats(showLoader = true) {
       const wrap = document.getElementById("statsTableWrap");
       const from = document.getElementById("statFrom").value;
       const to = document.getElementById("statTo").value;
-      wrap.innerHTML = '<p class="muted">Đang tải...</p>';
+      if (showLoader) wrap.innerHTML = skeletonHtml();
       try {
         const q = new URLSearchParams({ from, to });
-        const res = await api("/api/admin/stats/by-user?" + q);
+        const res = await api("/api/admin/stats/by-key?" + q);
         const rows = res.data || [];
         if (!rows.length) {
-          wrap.innerHTML = '<div class="empty">Không có dữ liệu trong khoảng ngày đã chọn</div>';
+          wrap.innerHTML = '<div class="empty empty-animate">Không có dữ liệu trong khoảng ngày đã chọn</div>';
           return;
         }
-        let html = `<table><thead><tr><th>Ngày</th><th>User</th><th>Email</th><th>Số yêu cầu</th></tr></thead><tbody>`;
-        rows.forEach((r) => {
-          html += `<tr>
+        let html = `<table class="content-animate"><thead><tr><th>Ngày</th><th>Nhãn</th><th>Key</th><th>Số yêu cầu</th></tr></thead><tbody>`;
+        rows.forEach((r, i) => {
+          const key = r.apiKey || {};
+          html += `<tr class="row-animate" style="animation-delay:${Math.min(i * 40, 360)}ms">
             <td>${escapeHtml(r.statDate)}</td>
-            <td>${escapeHtml(r.user?.name || "—")}</td>
-            <td>${escapeHtml(r.user?.email || "—")}</td>
+            <td>${escapeHtml(key.label || "—")}</td>
+            <td class="key-cell">${escapeHtml(key.keyValue || "—")}</td>
             <td><strong>${r.requestCount}</strong></td>
           </tr>`;
         });
         html += "</tbody></table>";
         wrap.innerHTML = html;
       } catch (err) {
-        wrap.innerHTML = '<div class="empty">' + escapeHtml(err.message) + "</div>";
+        wrap.innerHTML = '<div class="empty empty-animate">' + escapeHtml(err.message) + "</div>";
       }
     }
 
-    document.getElementById("loadStatsBtn").addEventListener("click", loadStats);
+    document.getElementById("loadStatsBtn").addEventListener("click", () => {
+      withButtonAction(document.getElementById("loadStatsBtn"), () => loadStats(true));
+    });
 
     function copyText(text) {
       navigator.clipboard.writeText(text).then(() => toast("Đã sao chép")).catch(() => toast("Không sao chép được", "error"));
@@ -480,6 +1230,7 @@
     }
 
     (async function init() {
+      playViewIn("loginView", "view-in");
       const token = getToken();
       const userRaw = localStorage.getItem(USER_KEY);
       if (token && userRaw) {

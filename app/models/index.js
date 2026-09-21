@@ -16,8 +16,15 @@ ApiKey.hasMany(ApiKeyDailyUsage, { foreignKey: "apiKeyId", as: "dailyUsage" });
 ApiKeyDailyUsage.belongsTo(ApiKey, { foreignKey: "apiKeyId", as: "apiKey" });
 ApiKeyDailyUsage.belongsTo(User, { foreignKey: "userId", as: "owner" });
 
-sequelize.sync({ force: false }).then(() => {
+const { ensureDefaultAdmin } = require("../bootstrap/ensureAdmin");
+
+sequelize.sync({ force: false }).then(async () => {
   console.log('Database đã được đồng bộ!');
+  try {
+    await ensureDefaultAdmin();
+  } catch (err) {
+    console.error("[bootstrap] Lỗi tạo admin mặc định:", err.message);
+  }
 });
 module.exports = {
   User,

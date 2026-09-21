@@ -1,7 +1,7 @@
-const { ApiKey, ApiKeyDailyUsage, User } = require("../models");
-const { getTodayInVietnam } = require("../utils/date");
-
-const STATUS_ON = 1;
+const {
+  resolveApiKeyRecord,
+  consumeDailyQuota,
+} = require("../services/apiKeyRuntime.service");
 
 const resolveApiKey = async (req, res, next) => {
   const raw =
@@ -13,42 +13,34 @@ const resolveApiKey = async (req, res, next) => {
   }
 
   try {
-    const record = await ApiKey.findOne({
-      where: { keyValue: raw, status: STATUS_ON },
-      include: [{ model: User, as: "owner", attributes: ["id", "role", "status"] }],
-    });
+    const record = await resolveApiKeyRecord(raw);
 
-    if (!record || !record.owner) {
+    if (!record) {
       return res.status(401).json({ success: false, message: "Invalid API key" });
     }
 
-    if (record.owner.status !== 1) {
+    if (record.userStatus !== 1) {
       return res.status(403).json({ success: false, message: "User account disabled" });
     }
 
-    const statDate = getTodayInVietnam();
-    const [usage] = await ApiKeyDailyUsage.findOrCreate({
-      where: { apiKeyId: record.id, statDate },
-      defaults: {
-        userId: record.userId,
-        requestCount: 0,
-      },
-    });
+    const quota = consumeDailyQuota(
+      record.id,
+      record.userId,
+      record.dailyLimit
+    );
 
-    if (usage.requestCount >= record.dailyLimit) {
+    if (!quota.ok) {
       return res.status(429).json({
         success: false,
         message: "Daily request limit exceeded",
-        dailyLimit: record.dailyLimit,
-        used: usage.requestCount,
-        statDate,
+        dailyLimit: quota.dailyLimit,
+        used: quota.used,
+        statDate: quota.statDate,
       });
     }
 
-    await usage.increment("requestCount");
-
     req.apiKey = record;
-    req.user = { id: record.userId, role: record.owner.role };
+    req.user = { id: record.userId, role: record.role };
     next();
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

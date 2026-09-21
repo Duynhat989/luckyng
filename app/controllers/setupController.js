@@ -1,5 +1,6 @@
 const { STATUS, Setup } = require("../models");
 const { encryption, compare } = require('../utils/encode');
+const { invalidateSetup } = require("../services/setupCache.service");
 
 // Lấy danh sách tất cả học sinh
 exports.getAllSetup = async (req, res) => {
@@ -142,6 +143,7 @@ exports.saveAllSetup = async (req, res) => {
                 });
             }
         }
+        invalidateSetup();
         res.status(200).json({
             success: true
         });
