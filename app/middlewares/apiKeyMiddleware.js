@@ -4,9 +4,16 @@ const {
 } = require("../services/apiKeyRuntime.service");
 
 const resolveApiKey = async (req, res, next) => {
-  const raw =
-    req.headers["x-api-key"] ||
-    (req.headers.authorization || "").replace(/^ApiKey\s+/i, "").trim();
+  let raw = req.headers["x-api-key"];
+  if (!raw) {
+    const auth = req.headers.authorization || "";
+    if (/^ApiKey\s+/i.test(auth)) {
+      raw = auth.replace(/^ApiKey\s+/i, "").trim();
+    } else if (/^Bearer\s+/i.test(auth)) {
+      const bearer = auth.replace(/^Bearer\s+/i, "").trim();
+      if (bearer.startsWith("lnk_")) raw = bearer;
+    }
+  }
 
   if (!raw) {
     return res.status(401).json({ success: false, message: "API key required" });

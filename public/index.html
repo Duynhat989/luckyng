@@ -724,6 +724,7 @@
 
     <nav class="nav-tabs">
       <button type="button" class="tab active" data-tab="keys">API Keys</button>
+      <button type="button" class="tab" data-tab="webhooks">Webhooks</button>
       <button type="button" class="tab" data-tab="stats">Thống kê</button>
     </nav>
 
@@ -764,6 +765,44 @@
           </div>
           <div class="section-body" style="padding:0">
             <div id="keysTableWrap" class="table-wrap"></div>
+          </div>
+        </section>
+      </div>
+
+      <div id="panelWebhooks" class="panel">
+        <section class="section">
+          <div class="section-head">
+            <h2>Thêm webhook</h2>
+            <p>Khi task Veo / Flow hoàn thành hoặc lỗi, server gửi <code>POST</code> JSON tới tất cả webhook đang bật: <code>{ taskId, data }</code>.</p>
+          </div>
+          <div class="section-body">
+            <div class="grid-2">
+              <div class="field">
+                <label for="whLabel">Nhãn (tuỳ chọn)</label>
+                <input id="whLabel" type="text" placeholder="VD: Geminigen dev">
+              </div>
+              <div class="field">
+                <label for="whUrl">URL webhook</label>
+                <input id="whUrl" type="url" required placeholder="https://example.com/api/webhook">
+              </div>
+            </div>
+            <div class="field" style="margin-top:16px">
+              <label for="whHeaderKey">Header <code>x-api-key</code> (tuỳ chọn)</label>
+              <input id="whHeaderKey" type="text" placeholder="Gửi kèm nếu endpoint yêu cầu">
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-primary" id="createWebhookBtn">+ Thêm webhook</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h2>Danh sách webhook</h2>
+            <p>Chỉ webhook <strong>Đang bật</strong> nhận callback. Có thể cấu hình nhiều URL.</p>
+          </div>
+          <div class="section-body" style="padding:0">
+            <div id="webhooksTableWrap" class="table-wrap"></div>
           </div>
         </section>
       </div>
@@ -1031,6 +1070,8 @@
         } else {
           stopHopePolling();
         }
+        if (btn.dataset.tab === "webhooks") loadWebhooks();
+        if (btn.dataset.tab === "keys") loadKeys();
       });
     });
 
@@ -1184,6 +1225,128 @@
 
     document.getElementById("copyNewKey").addEventListener("click", () => {
       copyText(document.getElementById("newKeyValue").textContent);
+    });
+
+    async function loadWebhooks() {
+      const wrap = document.getElementById("webhooksTableWrap");
+      wrap.innerHTML = skeletonHtml();
+      try {
+        const res = await api("/api/admin/webhooks");
+        const rows = res.data || [];
+        if (!rows.length) {
+          wrap.innerHTML = '<div class="empty empty-animate">Chưa có webhook — thêm URL ở trên.</div>';
+          return;
+        }
+        let html = `<table class="content-animate"><thead><tr>
+          <th>Nhãn</th><th>URL</th><th>x-api-key</th><th>Trạng thái</th><th>Thao tác</th>
+        </tr></thead><tbody>`;
+        rows.forEach((w, i) => {
+          html += `<tr class="row-animate" style="animation-delay:${Math.min(i * 45, 400)}ms">
+            <td><strong>${escapeHtml(w.label || "—")}</strong></td>
+            <td class="key-cell" title="${escapeHtml(w.url)}">${escapeHtml(w.url)}</td>
+            <td>${w.headerApiKey ? "••••" + escapeHtml(String(w.headerApiKey).slice(-4)) : "—"}</td>
+            <td><span class="badge ${w.status === 1 ? "badge-on" : "badge-off"}">${w.status === 1 ? "Đang bật" : "Đã tắt"}</span></td>
+            <td class="actions">
+              <button class="btn btn-ghost btn-sm" data-wh-edit="${w.id}">Sửa</button>
+              <button class="btn btn-ghost btn-sm" data-wh-toggle="${w.id}" data-status="${w.status}">${w.status === 1 ? "Tắt" : "Bật"}</button>
+              <button class="btn btn-danger btn-sm" data-wh-del="${w.id}">Xóa</button>
+            </td>
+          </tr>`;
+        });
+        html += "</tbody></table>";
+        wrap.innerHTML = html;
+
+        wrap.querySelectorAll("[data-wh-toggle]").forEach((btn) => {
+          btn.addEventListener("click", () => withButtonAction(btn, async () => {
+            const id = btn.getAttribute("data-wh-toggle");
+            const cur = parseInt(btn.getAttribute("data-status"), 10);
+            const next = cur === 1 ? 2 : 1;
+            try {
+              await api("/api/admin/webhooks/" + id, {
+                method: "PATCH",
+                body: JSON.stringify({ status: next }),
+              });
+              toast(next === 1 ? "Đã bật webhook" : "Đã tắt webhook");
+              loadWebhooks();
+            } catch (err) {
+              toast(err.message, "error");
+            }
+          }));
+        });
+        wrap.querySelectorAll("[data-wh-del]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            if (!confirm("Xóa webhook này?")) return;
+            const row = btn.closest("tr");
+            await withButtonAction(btn, async () => {
+              try {
+                await api("/api/admin/webhooks/" + btn.getAttribute("data-wh-del"), { method: "DELETE" });
+                if (row) {
+                  row.classList.add("row-removing");
+                  await new Promise((r) => setTimeout(r, 320));
+                }
+                toast("Đã xóa");
+                loadWebhooks();
+              } catch (err) {
+                toast(err.message, "error");
+              }
+            });
+          });
+        });
+        wrap.querySelectorAll("[data-wh-edit]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const id = btn.getAttribute("data-wh-edit");
+            const row = rows.find((r) => String(r.id) === id);
+            if (!row) return;
+            const label = prompt("Nhãn:", row.label || "");
+            if (label === null) return;
+            const url = prompt("URL webhook:", row.url || "");
+            if (url === null) return;
+            const headerApiKey = prompt("x-api-key (để trống nếu không đổi, gõ - để xóa):", row.headerApiKey || "");
+            if (headerApiKey === null) return;
+            await withButtonAction(btn, async () => {
+              try {
+                const body = { label: label.trim(), url: url.trim() };
+                if (headerApiKey === "-") body.headerApiKey = "";
+                else if (headerApiKey.trim()) body.headerApiKey = headerApiKey.trim();
+                await api("/api/admin/webhooks/" + id, { method: "PATCH", body: JSON.stringify(body) });
+                toast("Đã cập nhật webhook");
+                loadWebhooks();
+              } catch (err) {
+                toast(err.message, "error");
+              }
+            });
+          });
+        });
+      } catch (err) {
+        wrap.innerHTML = '<div class="empty">' + escapeHtml(err.message) + "</div>";
+        if (err.status === 401) showLogin();
+      }
+    }
+
+    document.getElementById("createWebhookBtn").addEventListener("click", () => {
+      const btn = document.getElementById("createWebhookBtn");
+      const label = document.getElementById("whLabel").value.trim();
+      const url = document.getElementById("whUrl").value.trim();
+      const headerApiKey = document.getElementById("whHeaderKey").value.trim();
+      if (!url) {
+        toast("Nhập URL webhook", "error");
+        return;
+      }
+      withButtonAction(btn, async () => {
+        try {
+          await api("/api/admin/webhooks", {
+            method: "POST",
+            body: JSON.stringify({ label, url, headerApiKey: headerApiKey || undefined }),
+          });
+          document.getElementById("whUrl").value = "";
+          document.getElementById("whLabel").value = "";
+          document.getElementById("whHeaderKey").value = "";
+          toast("Đã thêm webhook");
+          loadWebhooks();
+        } catch (err) {
+          toast(err.message, "error");
+        }
+      });
     });
 
     async function loadStats(showLoader = true) {

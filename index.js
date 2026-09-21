@@ -34,7 +34,7 @@ const encryptResponseMiddleware = require('./app/middlewares/encryptResponseMidd
 app.use(decryptMiddleware);
 app.use(encryptResponseMiddleware);
 
-const { authRoutes, userRoutes, setupRoutes, veoRoutes, adminRoutes } = require("./app/routes");
+const { authRoutes, userRoutes, setupRoutes, veoRoutes, adminRoutes, v3FlowRoutes } = require("./app/routes");
 
 const statusReport = {
     success: 0,
@@ -115,6 +115,7 @@ app.use((req, res, next) => {
 app.use("/api/auth", authRoutes);
 app.use("/api", userRoutes);
 app.use("/api/fix", veoRoutes);
+app.use("/api/v3", v3FlowRoutes);
 app.use("/api/setup", setupRoutes);
 app.use("/api/admin", adminRoutes);
 

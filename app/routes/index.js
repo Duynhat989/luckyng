@@ -3,6 +3,7 @@ const userRoutes = require('./userRoutes');
 const setupRoutes = require('./setupRoutes');
 const veoRoutes = require('./veoRoutes');
 const adminRoutes = require('./adminRoutes');
+const v3FlowRoutes = require('./v3FlowRoutes');
 
 module.exports = {
   authRoutes,
@@ -10,4 +11,5 @@ module.exports = {
   setupRoutes,
   veoRoutes,
   adminRoutes,
+  v3FlowRoutes,
 };

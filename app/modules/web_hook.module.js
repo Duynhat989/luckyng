@@ -1,37 +1,45 @@
-const URL_WEBHOOK =
-    process.env.URL_WEBHOOK;
+const fetch = require("node-fetch");
+const { resolveWebhookTargets } = require("../services/webhookRuntime.service");
+
+async function postOneWebhook(target, taskId, data) {
+  const headers = {
+    accept: "application/json",
+    "Content-Type": "application/json",
+  };
+  if (target.headerApiKey) {
+    headers["x-api-key"] = target.headerApiKey;
+  }
+
+  const response = await fetch(target.url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ taskId, data }),
+  });
+
+  if (!response.ok) {
+    console.error(
+      `[webhook] ${target.url} failed: ${response.status} ${response.statusText}`
+    );
+    return false;
+  }
+  return true;
+}
 
 async function sendCallback(taskId, data = {}) {
-    if (URL_WEBHOOK && URL_WEBHOOK.length > 10) {
-        try {
-            const response = await fetch(URL_WEBHOOK, {
-                method: "POST",
-                headers: {
-                    accept: "application/json",
-                    "x-api-key": "abc",
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    taskId,
-                    data,
-                }),
-            });
+  const targets = await resolveWebhookTargets();
+  if (!targets.length) return;
 
-            if (!response.ok) {
-                console.error(
-                    `Webhook failed: ${response.status} ${response.statusText}`
-                );
-                return false;
-            }
-
-            return true;
-        } catch (error) {
-            console.error("Webhook error:", error.message);
-            return false;
-        }
-    }
+  await Promise.allSettled(
+    targets.map(async (target) => {
+      try {
+        await postOneWebhook(target, taskId, data);
+      } catch (error) {
+        console.error(`[webhook] ${target.url} error:`, error.message);
+      }
+    })
+  );
 }
 
 module.exports = {
-    sendCallback
-}
+  sendCallback,
+};

@@ -5,6 +5,7 @@ const { STATUS, Setup } = require('../models/setupModel');
 const { packs } = require("./packModel");
 const { ApiKey } = require("./apiKeyModel");
 const { ApiKeyDailyUsage } = require("./apiKeyUsageModel");
+const { Webhook } = require("./webhookModel");
 
 User.hasOne(packs, { foreignKey: "userId", as: "pack" });
 packs.belongsTo(User, { foreignKey: "userId", as: "user" });
@@ -15,6 +16,9 @@ ApiKey.belongsTo(User, { foreignKey: "userId", as: "owner" });
 ApiKey.hasMany(ApiKeyDailyUsage, { foreignKey: "apiKeyId", as: "dailyUsage" });
 ApiKeyDailyUsage.belongsTo(ApiKey, { foreignKey: "apiKeyId", as: "apiKey" });
 ApiKeyDailyUsage.belongsTo(User, { foreignKey: "userId", as: "owner" });
+
+User.hasMany(Webhook, { foreignKey: "userId", as: "webhooks" });
+Webhook.belongsTo(User, { foreignKey: "userId", as: "owner" });
 
 const { ensureDefaultAdmin } = require("../bootstrap/ensureAdmin");
 
@@ -34,4 +38,5 @@ module.exports = {
   packs,
   ApiKey,
   ApiKeyDailyUsage,
+  Webhook,
 };
