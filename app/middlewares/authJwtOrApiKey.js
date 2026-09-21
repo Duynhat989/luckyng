@@ -1,7 +1,10 @@
 const authJwt = require("./authMiddleware.js");
 const resolveApiKey = require("./apiKeyMiddleware.js");
 
-const authJwtOrApiKey = (roles = []) => {
+const authJwtOrApiKey = (roles = [], options = {}) => {
+  const countUsage = options.countUsage === true;
+  const apiKeyMw = countUsage ? resolveApiKey.withUsageCount : resolveApiKey;
+
   return (req, res, next) => {
     const authHeader = req.headers.authorization || "";
     const hasApiKey =
@@ -11,7 +14,7 @@ const authJwtOrApiKey = (roles = []) => {
         authHeader.replace(/^Bearer\s+/i, "").trim().startsWith("lnk_"));
 
     if (hasApiKey) {
-      return resolveApiKey(req, res, next);
+      return apiKeyMw(req, res, next);
     }
     return authJwt(roles)(req, res, next);
   };

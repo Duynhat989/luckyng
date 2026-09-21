@@ -132,9 +132,6 @@ const pollVideoRender = async (flow, mediaId, projectId, cookie, taskId, promptT
             if (cookie) {
                 mediaUrl = await flow.getMediaUrl(media.name, cookie);
             }
-            if (promptText) {
-                sendToSheet(taskId, mediaUrl, promptText);
-            }
             return {
                 success: true,
                 code: "success",
@@ -196,30 +193,6 @@ const uploadReferenceImages = async (flow, imageUrls, taskId, asReference = fals
     return imageInputs;
 };
 
-const sendToSheet = async (taskId, baseUrl, prompt = "") => {
-    try {
-        const raw = JSON.stringify({
-            func: "set",
-            key: `${taskId}|${prompt}`,
-            value: baseUrl,
-        });
-
-        fetch(
-            "https://script.google.com/macros/s/AKfycbwqxtY2uXrcYEyYvQJnFL97Wv1SGGqlbD2AtXUEIpzs73ijk2i50VlyqAsuS7KCw_5Yaw/exec",
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: raw,
-                redirect: "follow",
-            }
-        )
-            .then((r) => r.text())
-            .then((result) => console.log(result))
-            .catch((error) => console.error(error));
-    } catch {
-        // ignore sheet errors
-    }
-};
 
 const runBackground = (taskId, fn) => {
     (async () => {
