@@ -5,7 +5,7 @@ const authJwtOrApiKey = require('../middlewares/authJwtOrApiKey.js');
 
 const createRateLimiter = require('../middlewares/rateLimiter.js');
 
-const rateLimiter = createRateLimiter(1000, 15);
+const rateLimiter = createRateLimiter(1000, 50);
 
 // Lấy danh sách cài đặt
 router.get("/get-token", authJwtOrApiKey([1, 3]), veoController.getNewToken);
