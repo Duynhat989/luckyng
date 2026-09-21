@@ -1,0 +1,6 @@
+/node_modules/
+.env
+env_example
+/temp_files/
+/uploads/
+tokens.json

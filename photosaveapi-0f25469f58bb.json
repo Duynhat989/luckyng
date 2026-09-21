@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "photosaveapi",
+  "private_key_id": "0f25469f58bbd865e5cad0e2e1544f0d85716949",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDwBylGR0vxM7T4\nA2o1K9qo5utoaAEGgEBcI13CcvtW20p9ZSg85PdHhcwpRzXexxsUD8QpiVCpo0Eg\nr8j/Eqgbkij/8fYMYDOsH+Jck5qgf7RCtBZDP984RQ7enP56U5KahlKvDnrN0ePU\n8nqevov3KGEJX/BJZ6UKFVgW2iTUMtVHs3nGoAU3MIAQpEglCy71wH/q3jRJj921\nfi8GN9s9b6FaR+4cD455UU+ciVN6mmTfVW7Dsv/nmY32Zjrajeikd01u0bgWf8WF\nX7SYNSZFmKFgzxWNQAiDuaAK8sLNayp2XkJBQfZ0RATKhzt4b67euEeOzK0eB1nR\nhPeIVdgXAgMBAAECggEAUxZHhVpcwWvisw+LjkhV8q2sw4FtCXEP1lUvuYXP1ysl\nx+5iVWH07z8zgv5xeWJ2zyT+BFrSH0ax3ry62QD+TDz2EFMTlwkeGfEXjHBT0Eck\ngQqRwkmz3WiaUxkJRhLz5qWkrZBXljOXqDkflR/kl3PU00fwh5hnGux0h8SPhxw9\n9QyTbztUuxqTGRMWrDcLoaCwd7oPQ1b/XV5KjUgskGn0CCBrSUEEZEtytaum5trX\nulvumgNtCzCHZwRsx+2BNm8F18F3LUfZh25VkmsjW2X+39zgWYtPJmZ77qfjV2xC\n57FXDoWin7sUquIDeCJrWQoASatWKuIQmeknPDqAEQKBgQD5tWUneLxR5C/aGRd6\npvsEJIkJm+GJcJsV0gL31N0bDPr80vNwpg6O0q4DAYDBSBxZRUnsMIP1HeSGB4LC\nRroNYynBdRmP7NN2ZtqxlA9RqaxMTctyKK8TpluYrYSPG6X78UTxt9rGoF9pOo3J\nN1rcD2U7xOjpvNvbzET9X/Nv/QKBgQD2E1OqNm6ACucHvWM7xbkNfhdpwWfhptmf\nU/gRcI/hPweEQQuNwmtHrSO6Xldl6UJGrHzXNZE6VXWJqjDFpYS3e+OsLDEA1tVU\nkQN6IHa+K2ECyhL1z13UdXyEBe67eiosmiFixiamL8ZQyrDzZGz2EZgjJrhdaREA\niYeNldjSowKBgFz/yeShesGlEo1PuwbbGbG5SbBideUSIzBFPwW+KXrhorh2eGQD\n9HgMzvIfpSxXBvfYbmegygSIVYv1UCW64aAKxopeal7H/RmjxN9OHUZ0ws7ISnUB\n4fKXipWaSjxiN7dVbC/6IWjIYcB3JkdCbnx232UbOQOUau25bhhPnAKhAoGBAPK+\nugftTjBNkP6Xmy65rAVdX6dZvSpit8duxAYgLi8bSET1DXq4UbARYm9U5Y6I/nJN\ncZGzLCKJbztwglBXKYb/VebgaS7Uvvl/XBi7saeDj117Dh0ihQMzKrPqTkjvCG+b\nVFfl9PZ3poDIkqpnZP2Q+a2jYrfzD2yiPvAy5ANVAoGAYjx3KWj+NVaNy9OpX8ej\nvKw5FgbvLJWzEYW9VPBKtQnR0648BIyYLH/Ym7vKs0Qqeezy6PLh0JYV6jzDgSIC\nqGH3qkjpZoHCq4yQ/Zvh815omkLD8nY5xuZjYaQeyTonqPMySBFG32YodzOyn2Ug\nkMDd2VtEq7iErbGfMpGT1Ys=\n-----END PRIVATE KEY-----\n",
+  "client_email": "savephotoai@photosaveapi.iam.gserviceaccount.com",
+  "client_id": "109783795683935647077",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/savephotoai%40photosaveapi.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
