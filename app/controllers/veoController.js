@@ -80,44 +80,15 @@ const waitForTokenCaptcha = async (isGenvideo = true) => {
     } else {
         requireImage++;
     }
-    return new Promise((resolve) => {
-        let done = false;
-        let checkInterval;
-        let timeoutId;
-        const finish = (result) => {
-            if (done) return;
-            done = true;
-            if (isGenvideo) requireGenvideo--;
-            else requireImage--;
-            numberQuer--;
-            if (checkInterval) clearInterval(checkInterval);
-            if (timeoutId) clearTimeout(timeoutId);
-            resolve(result);
-        };
-        console.log("Waiting for token captcha: ", isGenvideo ? "video" : "image");
-        if (isGenvideo) {
-            checkInterval = setInterval(() => {
-                const token = tokenVideoManager.getNewToken();
-                if (token) {
-                    finish(token);
-                }
-            }, 200);
-            timeoutId = setTimeout(() => {
-                finish(null);
-            }, 120 * 1000);
-        }
-        else {
-            checkInterval = setInterval(() => {
-                const token = tokenImageManager.getNewToken();
-                if (token) {
-                    finish(token);
-                }
-            }, 200);
-            timeoutId = setTimeout(() => {
-                finish(null);
-            }, 120 * 1000);
-        }
-    });
+    try {
+        const manager = isGenvideo ? tokenVideoManager : tokenImageManager;
+        // Giống aiease getToken(); thêm event notify khi addToken (bỏ Array.from)
+        return await manager.waitForToken(120 * 1000, 200);
+    } finally {
+        if (isGenvideo) requireGenvideo--;
+        else requireImage--;
+        numberQuer--;
+    }
 };
 
 const getNewToken = async (req, res) => {
