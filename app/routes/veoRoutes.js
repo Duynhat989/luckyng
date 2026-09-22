@@ -17,14 +17,14 @@ router.post("/create-flow", authJwtOrApiKey([1, 3], { countUsage: true }), veoCo
 
 router.get("/task-status", veoController.getTaskStatus)
 
-router.post("/check-by-pass", authJwtOrApiKey([1, 3]), veoController.checkTokenByPass);
+router.post("/check-by-pass", veoController.checkTokenByPass);
 
 router.get("/get-token-v2", authJwtOrApiKey([1, 3]), veoController.getNewToken);
 
-router.get("/request-hope", authJwtOrApiKey([1, 3]), veoController.getHope);
+router.get("/request-hope", veoController.getHope);
 
 
-router.post("/upload-token", authJwtOrApiKey([1, 3]), veoController.addTokenCaptcha);
+router.post("/upload-token", veoController.addTokenCaptcha);
 
 // Lưu cài đặt
 
