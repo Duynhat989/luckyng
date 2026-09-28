@@ -6,7 +6,7 @@ const { sleep, getModelsV3, MODELS_V3_TIERS } = require("../utils/config.veo");
 const statusTasks = new Map();
 const taskMeta = new Map();
 
-const TASK_TTL_MS = 2 * 60 * 60 * 1000; // thời gian clear data
+const TASK_TTL_MS = 20 * 60 * 1000; // 20 phút
 const NANO_POLL_INTERVAL_MS = 5000;
 const NANO_POLL_MAX_IMAGE = 120;
 const NANO_POLL_MAX_VIDEO = 80;
