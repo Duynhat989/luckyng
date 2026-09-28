@@ -166,14 +166,32 @@ exports.getStatus = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+/** Cache RAM getPayment — 30s mới query DB lại */
+let paymentCache = { data: null, expiresAt: 0 };
+const PAYMENT_CACHE_TTL_MS = 30 * 1000;
+
 exports.getPayment = async (req, res) => {
     try {
+        const now = Date.now();
+        if (paymentCache.data !== undefined && now < paymentCache.expiresAt) {
+            return res.status(200).json({
+                payment: paymentCache.data
+            });
+        }
+
         const setups = await Setup.findOne({
             where: {
                 status: STATUS.ON,
                 name: 'API_PAYMENT_MONTHS'
             }
         });
+
+        paymentCache = {
+            data: setups,
+            expiresAt: now + PAYMENT_CACHE_TTL_MS,
+        };
+
         res.status(200).json({
             payment: setups
         });
