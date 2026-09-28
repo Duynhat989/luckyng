@@ -349,6 +349,18 @@
     }
     tbody tr:hover td { background: #fafbfc; }
     tbody tr:last-child td { border-bottom: none; }
+    #statsTableWrap tfoot td {
+      background: var(--bg-subtle);
+      font-weight: 700;
+      border-top: 1px solid var(--border-strong);
+      border-bottom: none;
+    }
+    .stats-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 280px));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
 
     .badge {
       display: inline-flex;
@@ -1362,17 +1374,30 @@
           wrap.innerHTML = '<div class="empty empty-animate">Không có dữ liệu trong khoảng ngày đã chọn</div>';
           return;
         }
-        let html = `<table class="content-animate"><thead><tr><th>Ngày</th><th>Nhãn</th><th>Key</th><th>Số yêu cầu</th></tr></thead><tbody>`;
+        const total = rows.reduce((sum, r) => sum + (Number(r.requestCount) || 0), 0);
+        const keyCount = new Set(rows.map((r) => (r.apiKey && r.apiKey.id) || r.apiKeyId)).size;
+        const rangeLabel = from && from === to ? from : `${from || "—"} → ${to || "—"}`;
+        let html = `<div class="stats-summary content-animate">
+          <div class="hope-card highlight">
+            <div class="label">Tổng số yêu cầu</div>
+            <div class="value">${formatNum(total)}</div>
+            <div class="sub">${formatNum(keyCount)} key · ${escapeHtml(rangeLabel)}</div>
+          </div>
+        </div>`;
+        html += `<table class="content-animate"><thead><tr><th>Ngày</th><th>Nhãn</th><th>Key</th><th>Số yêu cầu</th></tr></thead><tbody>`;
         rows.forEach((r, i) => {
           const key = r.apiKey || {};
           html += `<tr class="row-animate" style="animation-delay:${Math.min(i * 40, 360)}ms">
             <td>${escapeHtml(r.statDate)}</td>
             <td>${escapeHtml(key.label || "—")}</td>
             <td class="key-cell">${escapeHtml(key.keyValue || "—")}</td>
-            <td><strong>${r.requestCount}</strong></td>
+            <td><strong>${formatNum(r.requestCount)}</strong></td>
           </tr>`;
         });
-        html += "</tbody></table>";
+        html += `</tbody><tfoot><tr>
+          <td colspan="3">Tổng</td>
+          <td><strong>${formatNum(total)}</strong></td>
+        </tr></tfoot></table>`;
         wrap.innerHTML = html;
       } catch (err) {
         wrap.innerHTML = '<div class="empty empty-animate">' + escapeHtml(err.message) + "</div>";
