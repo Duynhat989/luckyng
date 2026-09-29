@@ -5,6 +5,7 @@ const { veo3Video } = require("../modules/veo3.module.js");
 const { v4: uuidv4 } = require("uuid"); // Import UUID
 const { TokenCaptchaImageManager } = require("../modules/captchaImage.module.js");
 const { sendCallback } = require("../modules/web_hook.module.js");
+const { execFile } = require("child_process");
 
 const tokenVideoManager = new TokenCaptchaManager();
 const tokenImageManager = new TokenCaptchaImageManager();
@@ -149,12 +150,33 @@ const getTokenAval = async (req, res) => {
 
 const MAX_VEO_TASK = 40;
 const RETRY = 150;
+const VEO_QUEUE_RESTART_LIMIT = 100;
 
 /* ===================== QUEUE CORE ===================== */
 
 let runningVeoTasks = 0;
 let veoQueue = [];
 const statusTasks = new Map();
+let pm2RestartScheduled = false;
+
+function restartIndexIfQueueOverflow() {
+    if (veoQueue.length <= VEO_QUEUE_RESTART_LIMIT) return;
+    if (pm2RestartScheduled) return;
+
+    pm2RestartScheduled = true;
+    console.error(
+        `[veoQueue] length ${veoQueue.length} > ${VEO_QUEUE_RESTART_LIMIT}, pm2 restart index`
+    );
+
+    execFile("pm2", ["restart", "index"], (err, stdout, stderr) => {
+        if (stdout) console.log(stdout.trim());
+        if (err) {
+            pm2RestartScheduled = false;
+            console.error("[veoQueue] pm2 restart failed:", err.message);
+            if (stderr) console.error(stderr.trim());
+        }
+    });
+}
 
 const runVeoQueue = () => {
     if (runningVeoTasks >= MAX_VEO_TASK) return;
@@ -306,6 +328,7 @@ const createVideoVeo3 = async (req, res) => {
             }
         };
         veoQueue.push(createTask);
+        restartIndexIfQueueOverflow();
         runVeoQueue();
         return res.status(200).json({
             success: true,
