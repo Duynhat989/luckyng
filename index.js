@@ -137,3 +137,57 @@ server.listen(PORT, () => {
   console.log(`Listen: ${PORT}`);
   warmKeyCache();
 });
+
+const { execFile } = require("child_process");
+
+const CPU_POLL_MS = 15_000;
+const CPU_HIGH_PERCENT = 90;
+const CPU_HIGH_LIMIT_MS = 5 * 60 * 1000;
+
+let cpuSample = process.cpuUsage();
+let cpuSampleAt = Date.now();
+let cpuHighSince = null;
+let cpuRestartScheduled = false;
+
+function pollCpuAndRestartIfStuck() {
+  const now = Date.now();
+  const elapsedMs = now - cpuSampleAt;
+  const usage = process.cpuUsage(cpuSample);
+  cpuSample = process.cpuUsage();
+  cpuSampleAt = now;
+
+  if (elapsedMs < 1000) return;
+
+  const cpuPercent = ((usage.user + usage.system) / 1000 / elapsedMs) * 100;
+
+  if (cpuPercent <= CPU_HIGH_PERCENT) {
+    console.log(`[cpu] ${cpuPercent.toFixed(1)}% <= ${CPU_HIGH_PERCENT}%, reset timer`);
+    if (cpuHighSince) {
+      console.error(`[cpu] ${cpuPercent.toFixed(1)}%, reset timer`);
+    }
+    cpuHighSince = null;
+    return;
+  }
+
+  if (!cpuHighSince) cpuHighSince = now;
+  const highForMs = now - cpuHighSince;
+  console.error(
+    `[cpu] ${cpuPercent.toFixed(1)}% for ${Math.round(highForMs / 1000)}s`
+  );
+
+  if (highForMs < CPU_HIGH_LIMIT_MS || cpuRestartScheduled) return;
+
+  cpuRestartScheduled = true;
+  console.error("[cpu] over 100% for 5 minutes, pm2 restart index");
+  execFile("pm2", ["restart", "index"], (err, stdout, stderr) => {
+    if (stdout) console.log(stdout.trim());
+    if (err) {
+      cpuRestartScheduled = false;
+      cpuHighSince = Date.now();
+      console.error("[cpu] pm2 restart failed:", err.message);
+      if (stderr) console.error(stderr.trim());
+    }
+  });
+}
+
+setInterval(pollCpuAndRestartIfStuck, CPU_POLL_MS);
