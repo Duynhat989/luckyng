@@ -19,7 +19,7 @@ const storagePath = path.join(__dirname, 'storages');
 app.use("/storages", express.static(storagePath));
 
 app.use("/storages", (req, res) => {
-  res.status(404).send("File not found in storages.");
+    res.status(404).send("File not found in storages.");
 });
 
 app.use(cors({
@@ -122,20 +122,21 @@ app.use("/api/admin", adminRoutes);
 const { flushUsageNow, warmKeyCache } = require("./app/services/apiKeyRuntime.service");
 
 async function shutdown() {
-  try {
-    await flushUsageNow();
-  } catch (e) {
-    console.error("Flush usage on shutdown:", e.message);
-  }
-  process.exit(0);
+    try {
+        await flushUsageNow();
+    } catch (e) {
+        console.error("Flush usage on shutdown:", e.message);
+    }
+    process.exit(0);
 }
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
 const PORT = 2053;
 server.listen(PORT, () => {
-  console.log(`Listen: ${PORT}`);
-  warmKeyCache();
+    console.log(`Listen: ${PORT}`);
+    warmKeyCache();
+    sendTelegramMessage("CPU: Start service");
 });
 
 const { execFile } = require("child_process");
@@ -149,45 +150,74 @@ let cpuSampleAt = Date.now();
 let cpuHighSince = null;
 let cpuRestartScheduled = false;
 
-function pollCpuAndRestartIfStuck() {
-  const now = Date.now();
-  const elapsedMs = now - cpuSampleAt;
-  const usage = process.cpuUsage(cpuSample);
-  cpuSample = process.cpuUsage();
-  cpuSampleAt = now;
 
-  if (elapsedMs < 1000) return;
+const telegramBotToken = "8634802465:AAHyyVIK9a-u0K5aHDre2JvR9ufWNL6HPwo";
+const telegramChatId = "-5348353930";
 
-  const cpuPercent = ((usage.user + usage.system) / 1000 / elapsedMs) * 100;
-
-  if (cpuPercent <= CPU_HIGH_PERCENT) {
-    console.log(`[cpu] ${cpuPercent.toFixed(1)}% <= ${CPU_HIGH_PERCENT}%, reset timer`);
-    if (cpuHighSince) {
-      console.error(`[cpu] ${cpuPercent.toFixed(1)}%, reset timer`);
+const sendTelegramMessage = async (message) => {
+    try {
+        const response = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                chat_id: telegramChatId,
+                text: message
+            })
+        });
+        if (response.ok) {
+            console.log("Telegram message sent successfully");
+            return;
+        }
+        const body = await response.text();
+        console.error("Failed to send Telegram message", response.status, body);
+    } catch (error) {
+        console.error("Error sending Telegram message:", error);
     }
-    cpuHighSince = null;
-    return;
-  }
+}
 
-  if (!cpuHighSince) cpuHighSince = now;
-  const highForMs = now - cpuHighSince;
-  console.error(
-    `[cpu] ${cpuPercent.toFixed(1)}% for ${Math.round(highForMs / 1000)}s`
-  );
+async function pollCpuAndRestartIfStuck() {
+    const now = Date.now();
+    const elapsedMs = now - cpuSampleAt;
+    const usage = process.cpuUsage(cpuSample);
+    cpuSample = process.cpuUsage();
+    cpuSampleAt = now;
 
-  if (highForMs < CPU_HIGH_LIMIT_MS || cpuRestartScheduled) return;
+    if (elapsedMs < 1000) return;
 
-  cpuRestartScheduled = true;
-  console.error("[cpu] over 100% for 5 minutes, pm2 restart index");
-  execFile("pm2", ["restart", "index"], (err, stdout, stderr) => {
-    if (stdout) console.log(stdout.trim());
-    if (err) {
-      cpuRestartScheduled = false;
-      cpuHighSince = Date.now();
-      console.error("[cpu] pm2 restart failed:", err.message);
-      if (stderr) console.error(stderr.trim());
+    const cpuPercent = ((usage.user + usage.system) / 1000 / elapsedMs) * 100;
+
+    if (cpuPercent <= CPU_HIGH_PERCENT) {
+        if (cpuHighSince) {
+            console.error(`[cpu] ${cpuPercent.toFixed(1)}%, reset timer`);
+        }
+        cpuHighSince = null;
+        return;
     }
-  });
+
+    if (!cpuHighSince) cpuHighSince = now;
+    const highForMs = now - cpuHighSince;
+    console.error(
+        `[cpu] ${cpuPercent.toFixed(1)}% for ${Math.round(highForMs / 1000)}s`
+    );
+
+    if (highForMs < CPU_HIGH_LIMIT_MS || cpuRestartScheduled) return;
+
+    cpuRestartScheduled = true;
+    await Promise.race([
+        sendTelegramMessage(`[CPU High Alert] CPU: ${cpuPercent.toFixed(1)}% for 5 minutes, pm2 restart index`),
+        new Promise((resolve) => setTimeout(resolve, 5000)),
+    ]);
+    setTimeout(() => {
+        execFile("pm2", ["restart", "index"], (err, stdout, stderr) => {
+            if (stdout) console.log(stdout.trim());
+            if (err) {
+                cpuRestartScheduled = false;
+                cpuHighSince = Date.now();
+                console.error("[cpu] pm2 restart failed:", err.message);
+                if (stderr) console.error(stderr.trim());
+            }
+        });
+    }, 2 * 1000);
 }
 
 setInterval(pollCpuAndRestartIfStuck, CPU_POLL_MS);
