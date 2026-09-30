@@ -187,7 +187,7 @@ async function pollCpuAndRestartIfStuck() {
     const cpuPercent = ((usage.user + usage.system) / 1000 / elapsedMs) * 100;
 
     if (cpuPercent <= CPU_HIGH_PERCENT) {
-        sendTelegramMessage(`[cpu] ${cpuPercent.toFixed(1)}% <= ${CPU_HIGH_PERCENT}%, reset timer`);
+        console.log(`[cpu] ${cpuPercent.toFixed(1)}% <= ${CPU_HIGH_PERCENT}%, reset timer`);
         if (cpuHighSince) {
             console.error(`[cpu] ${cpuPercent.toFixed(1)}%, reset timer`);
         }
