@@ -143,7 +143,7 @@ const { execFile } = require("child_process");
 
 const CPU_POLL_MS = 15_000;
 const CPU_HIGH_PERCENT = 90;
-const CPU_HIGH_LIMIT_MS = 5 * 60 * 1000;
+const CPU_HIGH_LIMIT_MS = 3 * 60 * 1000;
 
 let cpuSample = process.cpuUsage();
 let cpuSampleAt = Date.now();
