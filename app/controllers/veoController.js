@@ -482,6 +482,22 @@ const getHope = async (req, res) => {
         runtime: getRuntimeStats(),
     })
 }
+const rqHope = async () =>{
+    return {
+        success: true,
+        request: numberQuer,
+        genvideo: requireGenvideo,
+        image: requireImage,
+        processing: runningVeoTasks,
+        valiVideo: tokenVideoManager.getValidTokenCount(),
+        valiImage: tokenImageManager.getValidTokenCount(),
+        queue: veoQueue.length,
+        countTasks: countTasks,
+        countTokenNumber: countTokenNumber,
+        logs: logsData,
+        runtime: getRuntimeStats(),
+    }
+}
 const clearTemplate = async (req, res) => {
     veoQueue = []
     return res.status(200).json({
@@ -496,5 +512,6 @@ module.exports = {
     createVideoVeo3,
     getTaskStatus,
     checkTokenByPass,
-    getHope
+    getHope,
+    rqHope
 };

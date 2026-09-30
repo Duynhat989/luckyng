@@ -140,6 +140,7 @@ server.listen(PORT, () => {
 });
 
 const { execFile } = require("child_process");
+const { rqHope } = require("./app/controllers/veoController.js");
 
 const CPU_POLL_MS = 15_000;
 const CPU_HIGH_PERCENT = 90;
@@ -204,8 +205,9 @@ async function pollCpuAndRestartIfStuck() {
     if (highForMs < CPU_HIGH_LIMIT_MS || cpuRestartScheduled) return;
 
     cpuRestartScheduled = true;
+    const requestHope = await rqHope();
     await Promise.race([
-        sendTelegramMessage(`[CPU High Alert] CPU: ${cpuPercent.toFixed(1)}% for 5 minutes, pm2 restart index`),
+        sendTelegramMessage(`[CPU High Alert] CPU: ${cpuPercent.toFixed(1)}% for ${Math.round(CPU_HIGH_LIMIT_MS / 1000 / 60)} minutes, ${JSON.stringify(requestHope)}`),
         new Promise((resolve) => setTimeout(resolve, 5000)),
     ]);
     setTimeout(() => {
