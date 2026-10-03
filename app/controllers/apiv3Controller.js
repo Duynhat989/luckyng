@@ -6,7 +6,7 @@ const { sleep, getModelsV3, MODELS_V3_TIERS } = require("../utils/config.veo");
 const statusTasks = new Map();
 const taskMeta = new Map();
 
-const TASK_TTL_MS = 20 * 60 * 1000; // 20 phút
+const TASK_TTL_MS = 10 * 60 * 1000;
 const NANO_POLL_INTERVAL_MS = 5000;
 const NANO_POLL_MAX_IMAGE = 120;
 const NANO_POLL_MAX_VIDEO = 80;
@@ -22,11 +22,15 @@ const resolveTier = (tier) => (tier === "pro" ? "pro" : "ultra");
 // Helpers
 // ---------------------------------------------------------------------------
 
+const cleanupScheduled = new Set();
+
 const clearTimeOut = (taskId) => {
+    if (!taskId || cleanupScheduled.has(taskId)) return;
+    cleanupScheduled.add(taskId);
     setTimeout(() => {
         statusTasks.delete(taskId);
         taskMeta.delete(taskId);
-        console.log(`Task ${taskId} đã bị xoá sau ${TASK_TTL_MS / 60000} phút`);
+        cleanupScheduled.delete(taskId);
     }, TASK_TTL_MS);
 };
 
@@ -69,6 +73,7 @@ const setTask = (taskId, status) => {
     statusTasks.set(taskId, normalized);
 
     if (normalized.code === "success" || normalized.code === "error") {
+        clearTimeOut(taskId);
         const { userId } = taskMeta.get(taskId) || {};
         if (userId) {
             sendCallback(taskId, normalized).catch((err) =>
@@ -317,8 +322,6 @@ const imageFlow = async (req, res) => {
         return acceptTask(res, taskId);
     } catch (error) {
         return serverError(res, error);
-    } finally {
-        clearTimeOut(taskId);
     }
 };
 
@@ -374,8 +377,6 @@ const upscaleImageFlow = async (req, res) => {
         return acceptTask(res, taskId);
     } catch (error) {
         return serverError(res, error);
-    } finally {
-        clearTimeOut(taskId);
     }
 };
 
@@ -507,8 +508,6 @@ const videoFlow = async (req, res) => {
         return acceptTask(res, taskId);
     } catch (error) {
         return serverError(res, error);
-    } finally {
-        clearTimeOut(taskId);
     }
 };
 
@@ -606,8 +605,6 @@ const upscaleVideoFlow = async (req, res) => {
         return acceptTask(res, taskId);
     } catch (error) {
         return serverError(res, error);
-    } finally {
-        clearTimeOut(taskId);
     }
 };
 

@@ -322,9 +322,7 @@ const createVideoVeo3 = async (req, res) => {
                 throw err;
             }
             finally {
-                setTimeout(() => {
-                    clearData(taskId)
-                }, 60 * 100 * 1000)
+                clearData(taskId);
             }
         };
         veoQueue.push(createTask);
@@ -343,20 +341,19 @@ const createVideoVeo3 = async (req, res) => {
     }
 };
 
+const TASK_DONE_TTL_MS = 10 * 60 * 1000;
+
 const clearData = (taskId) => {
     const task = statusTasks.get(taskId);
     if (!task) return;
 
-    // đã lên lịch xoá rồi thì bỏ qua
     if (task.__clearing) return;
 
     task.__clearing = true;
 
     setTimeout(() => {
-        try {
-            statusTasks.delete(taskId);
-        } catch (error) { }
-    }, 5 * 60 * 1000);
+        statusTasks.delete(taskId);
+    }, TASK_DONE_TTL_MS);
 };
 
 const getTaskStatus = async (req, res) => {
