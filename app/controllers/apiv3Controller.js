@@ -135,7 +135,7 @@ const pollVideoRender = async (flow, mediaId, projectId, cookie, taskId, promptT
             const media = mediaList[0];
             let mediaUrl = "";
             if (cookie) {
-                mediaUrl = await flow.getMediaUrl(media.name, cookie);
+                mediaUrl = await flow.getMediaUrl(mediaId, cookie);
             }
             return {
                 success: true,
