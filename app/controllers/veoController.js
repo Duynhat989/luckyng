@@ -11,9 +11,18 @@ const tokenVideoManager = new TokenCaptchaManager();
 const tokenImageManager = new TokenCaptchaImageManager();
 const rejectBrowserIds = new Set();
 let countTokenNumber = 0
+const parseTokenFingerprint = (raw = "") => {
+    const [token = "", userAgent = "", secChUa = ""] = String(raw).split("|");
+    return {
+        token: token.trim(),
+        userAgent: userAgent.trim(),
+        secChUa: secChUa.trim(),
+    };
+};
+
 const addTokenCaptcha = async (req, res) => {
     try {
-        const { tokenCaptcha, browserId, type = "video" } = req.body;
+        const { tokenCaptcha, browserId, type = "video", fingerprint = {} } = req.body;
         if (browserId) {
             // if (rejectBrowserIds.has(browserId)) {
             //     return res.status(403).json({
@@ -28,9 +37,18 @@ const addTokenCaptcha = async (req, res) => {
                 message: 'Token captcha là bắt buộc'
             });
         }
+        const isValid = tokenCaptcha?.startsWith("HF");
+        if (isValid) {
+            return res.status(400).json({
+                success: false,
+                message: `Token sai định dạng [veo] ${tokenCaptcha.slice(0, 10)}`
+            });
+        }
+
+        const newTokenCaptcha = `${tokenCaptcha}|${fingerprint?.userAgent || ""} | ${fingerprint?.secChUa || ""}`;
         if (type === "video") {
             countTokenNumber++;
-            const added = tokenVideoManager.addToken(tokenCaptcha);
+            const added = tokenVideoManager.addToken(newTokenCaptcha);
             if (!added) {
                 return res.status(409).json({
                     success: false,
@@ -46,7 +64,7 @@ const addTokenCaptcha = async (req, res) => {
             });
 
         } else {
-            const added = tokenImageManager.addToken(tokenCaptcha);
+            const added = tokenImageManager.addToken(newTokenCaptcha);
             if (!added) {
                 return res.status(409).json({
                     success: false,
@@ -99,26 +117,20 @@ const getNewToken = async (req, res) => {
 
     try {
         // 2️⃣ Lấy captcha token
-        const token = await waitForTokenCaptcha(requireType === "video");
+        const dataNewToken = await waitForTokenCaptcha(requireType === "video");
+        const { token, userAgent, secChUa } = parseTokenFingerprint(dataNewToken?.token);
         if (!token) {
             throw { code: 408, message: "Captcha token timeout" };
         }
         const countTokens = tokenVideoManager.getValidTokenCount();
         console.log(`${userId} => Provided captcha token: `, countTokens);
-        // 3️⃣ Thành công
-        // saveRequestData({
-        //     userId,
-        //     content: JSON.stringify({
-        //         cost: COST,
-        //         type: "token",
-        //         msg: "Get token success"
-        //     })
-        // })
 
         return res.status(200).json({
             success: true,
-            token: token.token,
-            age: token.age,
+            token,
+            age: dataNewToken?.age,
+            userAgent,
+            secChUa,
             countTokens: countTokens
         });
 
@@ -236,30 +248,31 @@ const createVideoVeo3 = async (req, res) => {
 
                 for (let attempt = 1; attempt <= RETRY; attempt++) {
                     const isImage = flow_url.includes("batchGenerateImages") || flow_url.includes("upsampleImage");
-                    const token = await waitForTokenCaptcha(!isImage);
+                    const dataNewToken = await waitForTokenCaptcha(!isImage);
+                    const { token, userAgent, secChUa } = parseTokenFingerprint(dataNewToken?.token);
                     if (!token) continue;
                     if (body_json?.clientContext?.recaptchaContext) {
                         try {
-                            body_json.clientContext.recaptchaContext.token = token.token
+                            body_json.clientContext.recaptchaContext.token = token
                         } catch (error) {
                             console.error("Error setting recaptchaContext token:", error);
                         }
                     } else {
-                        try { body_json.clientContext = { recaptchaToken: token.token }; } catch { }
+                        try { body_json.clientContext = { recaptchaToken: token }; } catch { }
                     }
                     if (flow_url.includes("batchGenerateImages")) {
                         for (let i = 0; i < body_json.requests.length; i++) {
                             if (body_json.requests[i]?.clientContext?.recaptchaContext) {
-                                try { body_json.requests[i].clientContext.recaptchaContext.token = token.token; } catch (error) {
+                                try { body_json.requests[i].clientContext.recaptchaContext.token = token; } catch (error) {
                                     console.error("Error setting recaptchaContext token for image:", error);
                                 }
                             } else {
-                                try { body_json.requests[i].clientContext.recaptchaToken = token.token; } catch { }
+                                try { body_json.requests[i].clientContext.recaptchaToken = token; } catch { }
                             }
                         }
                     }
 
-                    const veo3 = new veo3Video(flow_auth_token, is_proxy, proxy)
+                    const veo3 = new veo3Video(flow_auth_token, is_proxy, proxy, userAgent, secChUa)
                     const result = await veo3.generateVideo(body_json, flow_url);
                     if (JSON.stringify(result).includes("reCAPTCHA evaluation failed")) {
                         statusTasks.set(taskId, {

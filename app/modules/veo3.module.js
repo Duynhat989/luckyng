@@ -2,12 +2,14 @@ const fetch = require("node-fetch");
 const { HttpsProxyAgent } = require("https-proxy-agent");
 
 class veo3Video {
-    constructor(access_token = "", is_proxy = false, proxy = "") {
+    constructor(access_token = "", is_proxy = false, proxy = "", userAgent = "", secChUa = "") {
         this.access_token = access_token;
         this.agent = null;
         if (is_proxy && proxy) {
             this.agent = this.buildProxyAgent(proxy);
         }
+        this.userAgent = userAgent;
+        this.secChUa = secChUa;
     }
 
     buildProxyAgent(proxy) {
@@ -40,10 +42,10 @@ class veo3Video {
             "sec-fetch-dest": "empty",
             "sec-fetch-mode": "cors",
             "sec-fetch-site": "cross-site",
-            "sec-ch-ua": '"Chromium";v="152", "Not?A_Brand";v="24", "Google Chrome";v="152"',
+            "sec-ch-ua": this.secChUa || '"Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99"',
             "sec-ch-ua-mobile": "?0",
             "sec-ch-ua-platform": '"Windows"',
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+            "user-agent": this.userAgent || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
         };
 
         try {
