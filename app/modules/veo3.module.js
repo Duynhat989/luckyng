@@ -64,6 +64,7 @@ class veo3Video {
 
             const response = await fetch(urlRequest, options);
             const result = await response.json();
+            console.log("result :", result);
             return result;
         } catch (error) {
             return {
