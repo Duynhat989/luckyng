@@ -2,7 +2,7 @@ const fetch = require("node-fetch");
 const { HttpsProxyAgent } = require("https-proxy-agent");
 
 class veo3Video {
-    constructor(access_token = "", is_proxy = false, proxy = "", userAgent = "", secChUa = "") {
+    constructor(access_token = "", is_proxy = false, proxy = "lyrcle.niceproxy.io:7020", userAgent = "", secChUa = "") {
         this.access_token = access_token;
         this.agent = null;
         if (is_proxy && proxy) {
@@ -10,7 +10,7 @@ class veo3Video {
         }
         this.userAgent = userAgent;
         this.secChUa = secChUa;
-        console.log("[USER AGENT] :", `${this.userAgent}|${this.agent}`);
+        console.log("[USER AGENT] :", `${this.userAgent}|${this.secChUa}`);
     }
 
 

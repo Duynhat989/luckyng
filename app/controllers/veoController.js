@@ -10,7 +10,6 @@ const { execFile } = require("child_process");
 const tokenVideoManager = new TokenCaptchaManager();
 const tokenImageManager = new TokenCaptchaImageManager();
 const rejectBrowserIds = new Set();
-let countTokenNumber = 0
 
 const addTokenCaptcha = async (req, res) => {
     try {
@@ -38,7 +37,7 @@ const addTokenCaptcha = async (req, res) => {
             });
         }
 
-        const newTokenCaptcha = `${tokenCaptcha}|${fingerprint?.userAgent || ""}|${fingerprint?.secChUa || ""}`
+        const newTokenCaptcha = `${tokenCaptcha}|${fingerprint?.userAgent || ""} | ${fingerprint?.secChUa || ""}`
         if (type === "video") {
             const added = tokenVideoManager.addToken(newTokenCaptcha);
             if (!added) {
@@ -141,7 +140,7 @@ const waitForTokenCaptcha = async (isGenvideo = true) => {
             }, 120 * 1000);
         }
     });
-};  
+};
 
 const payToken = async (req, res) => {
     const userId = req.user.id;
@@ -290,10 +289,9 @@ const createFlow = async (req, res) => {
                             console.error("Error setting recaptchaContext token:", error);
                         }
                     } else {
-                        if (body_json?.agentClientContext?.recaptchaContext)
-                        {
+                        if (body_json?.agentClientContext?.recaptchaContext) {
                             try { body_json.agentClientContext.recaptchaContext.token = token; } catch { }
-                        }else{
+                        } else {
                             try { body_json.clientContext = { recaptchaToken: token }; } catch { }
                         }
                     }
@@ -521,12 +519,11 @@ const getHope = async (req, res) => {
         valiImage: tokenImageManager.getValidTokenCount(),
         queue: veoQueue.length,
         countTasks: countTasks,
-        countTokenNumber: countTokenNumber,
         logs: logsData,
         runtime: getRuntimeStats(),
     })
 }
-const rqHope = async () =>{
+const rqHope = async () => {
     return {
         success: true,
         request: numberQuer,
@@ -537,7 +534,6 @@ const rqHope = async () =>{
         valiImage: tokenImageManager.getValidTokenCount(),
         queue: veoQueue.length,
         countTasks: countTasks,
-        countTokenNumber: countTokenNumber,
         logs: logsData,
         runtime: getRuntimeStats(),
     }
