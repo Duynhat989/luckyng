@@ -154,7 +154,6 @@ const waitForTokenCaptcha = async (isGenvideo = true) => {
 const payToken = async (req, res) => {
     const userId = req.user.id;
     const requireType = req.query.type || "video";
-    const COST = 30;
 
     try {
         // 2️⃣ Lấy captcha token
@@ -290,7 +289,7 @@ const createVideoVeo3 = async (req, res) => {
                 for (let attempt = 1; attempt <= RETRY; attempt++) {
                     const isImage = flow_url.includes("batchGenerateImages") || flow_url.includes("upsampleImage");
                     const dataNewToken = await waitForTokenCaptcha(!isImage);
-                    const { token, userAgent, secChUa } = parseTokenFingerprint(dataNewToken?.token);
+                    const [token = "", userAgent = "", secChUa = ""] = (dataNewToken?.token || "").split("|");
                     if (!token) continue;
                     if (body_json?.clientContext?.recaptchaContext) {
                         try {
@@ -299,7 +298,12 @@ const createVideoVeo3 = async (req, res) => {
                             console.error("Error setting recaptchaContext token:", error);
                         }
                     } else {
-                        try { body_json.clientContext = { recaptchaToken: token }; } catch { }
+                        if (body_json?.agentClientContext?.recaptchaContext)
+                        {
+                            try { body_json.agentClientContext.recaptchaContext.token = token; } catch { }
+                        }else{
+                            try { body_json.clientContext = { recaptchaToken: token }; } catch { }
+                        }
                     }
                     if (flow_url.includes("batchGenerateImages")) {
                         for (let i = 0; i < body_json.requests.length; i++) {
