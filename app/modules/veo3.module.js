@@ -5,7 +5,7 @@ class veo3Video {
     constructor(access_token = "", is_proxy = false, proxy = "lyrcle.niceproxy.io:7020", userAgent = "", secChUa = "") {
         this.access_token = access_token;
         this.agent = null;
-        if (is_proxy && proxy) {
+        if (proxy) {
             this.agent = this.buildProxyAgent(proxy);
         }
         this.userAgent = userAgent;
