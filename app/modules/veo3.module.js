@@ -2,10 +2,10 @@ const fetch = require("node-fetch");
 const { HttpsProxyAgent } = require("https-proxy-agent");
 
 class veo3Video {
-    constructor(access_token = "", is_proxy = false, proxy = "lyrcle.niceproxy.io:7020", userAgent = "", secChUa = "") {
+    constructor(access_token = "", is_proxy = false, proxy = "", userAgent = "", secChUa = "") {
         this.access_token = access_token;
         this.agent = null;
-        if (proxy) {
+        if (is_proxy && proxy) {
             this.agent = this.buildProxyAgent(proxy);
         }
         this.userAgent = userAgent;
@@ -56,7 +56,7 @@ class veo3Video {
                 headers,
                 body: JSON.stringify(bodyJson),
             };
-
+            console.log("bodyJson :", bodyJson);
             // QUAN TRỌNG: Chỉ thêm agent khi có proxy
             if (this.agent) {
                 options.agent = this.agent;
