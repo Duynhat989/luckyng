@@ -56,7 +56,7 @@ class veo3Video {
                 headers,
                 body: JSON.stringify(bodyJson),
             };
-            console.log("bodyJson :", bodyJson);
+            // console.log("bodyJson :", bodyJson);
             // QUAN TRỌNG: Chỉ thêm agent khi có proxy
             if (this.agent) {
                 options.agent = this.agent;
@@ -64,7 +64,7 @@ class veo3Video {
 
             const response = await fetch(urlRequest, options);
             const result = await response.json();
-            console.log("result :", result);
+            console.log("result :", JSON.stringify(result));
             return result;
         } catch (error) {
             return {
