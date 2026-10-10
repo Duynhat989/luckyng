@@ -11,18 +11,11 @@ const tokenVideoManager = new TokenCaptchaManager();
 const tokenImageManager = new TokenCaptchaImageManager();
 const rejectBrowserIds = new Set();
 let countTokenNumber = 0
-const parseTokenFingerprint = (raw = "") => {
-    const [token = "", userAgent = "", secChUa = ""] = String(raw).split("|");
-    return {
-        token: token.trim(),
-        userAgent: userAgent.trim(),
-        secChUa: secChUa.trim(),
-    };
-};
 
 const addTokenCaptcha = async (req, res) => {
     try {
         const { tokenCaptcha, browserId, type = "video", fingerprint = {} } = req.body;
+
         if (browserId) {
             // if (rejectBrowserIds.has(browserId)) {
             //     return res.status(403).json({
@@ -45,10 +38,9 @@ const addTokenCaptcha = async (req, res) => {
             });
         }
 
-        const newTokenCaptcha = `${tokenCaptcha}|${fingerprint?.userAgent || ""} | ${fingerprint?.secChUa || ""}`;
+        const newTokenCaptcha = `${tokenCaptcha}|${fingerprint?.userAgent || ""}|${fingerprint?.secChUa || ""}`
         if (type === "video") {
-            countTokenNumber++;
-            const added = tokenVideoManager.addToken(newTokenCaptcha);  
+            const added = tokenVideoManager.addToken(newTokenCaptcha);
             if (!added) {
                 return res.status(409).json({
                     success: false,
@@ -158,7 +150,7 @@ const payToken = async (req, res) => {
     try {
         // 2️⃣ Lấy captcha token
         const dataNewToken = await waitForTokenCaptcha(requireType === "video");
-        const { token, userAgent, secChUa } = parseTokenFingerprint(dataNewToken?.token);
+        const [token = "", userAgent = "", secChUa = ""] = (dataNewToken?.token || "").split("|");
         if (!token) {
             throw { code: 408, message: "Captcha token timeout" };
         }
@@ -258,7 +250,7 @@ const logsData = {
 }
 
 
-const createVideoVeo3 = async (req, res) => {
+const createFlow = async (req, res) => {
     const userId = req.user.id;
     try {
         const { flow_auth_token, body_json, flow_url, is_proxy = false, proxy = "" } = req.body;
@@ -448,50 +440,47 @@ const checkTokenByPass = async (req, res) => {
     try {
         const { browserId, token } = req.body;
         if (browserId) {
-            const body_json =
-            {
-                "mediaGenerationContext": {
-                    "batchId": "225ac5ce-dcd8-4a33-960a-6d9ded2428e6"
-                },
+            const body_json = {
                 "clientContext": {
-                    "projectId": "8c7c478a-6454-4081-a049-33010c47e7ae",
-                    "tool": "PINHOLE",
-                    "userPaygateTier": "PAYGATE_TIER_NOT_PAID",
-                    "sessionId": ";1772279180519",
                     "recaptchaContext": {
                         "token": token,
                         "applicationType": "RECAPTCHA_APPLICATION_TYPE_WEB"
-                    }
+                    },
+                    "sessionId": ";1771422879677",
+                    "projectId": "c38ca641-c21d-4b63-acc5-1d6a9ccb5e02",
+                    "tool": "PINHOLE",
+                    "userPaygateTier": "PAYGATE_TIER_NOT_PAID"
                 },
                 "requests": [{
                     "aspectRatio": "VIDEO_ASPECT_RATIO_LANDSCAPE",
-                    "seed": 13819,
+                    "seed": 20587,
                     "textInput": {
-                        "structuredPrompt": {
-                            "parts": [{
-                                "text": "xin chào"
-                            }]
-                        }
+                        "prompt": "ăn gì anh mời"
                     },
                     "videoModelKey": "veo_3_1_t2v_fast",
-                    "metadata": {}
-                }],
-                "useV2ModelConfig": true
+                    "metadata": {
+                        "sceneId": "ebf836e3-455f-4acf-b721-5360d1020a79"
+                    }
+                }]
             }
             const flow_url = "https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText";
-            const apiKeyValue = await getSetupValue("API_KEY");
+            const setups = await Setup.findOne({
+                where: {
+                    name: 'API_KEY'
+                }
+            });
 
-            if (!apiKeyValue) {
+            if (!setups) {
                 return res.status(403).json({
                     success: true,
                     code: "captcha",
                     message: 'Captcha Veo hết hạn'
                 });
             }
-            var veo3 = new veo3Video(apiKeyValue, false);
+            var veo3 = new veo3Video(setups.value, false);
             const result = await veo3.generateVideo(body_json, flow_url);
             if (JSON.stringify(result).includes("reCAPTCHA")) {
-                console.log("Captcha failed")
+                console.log("reCAPTCHA evaluation failed")
                 rejectBrowserIds.add(browserId);
                 return res.status(403).json({
                     success: false,
@@ -499,8 +488,7 @@ const checkTokenByPass = async (req, res) => {
                     message: 'Browser ID bị từ chối'
                 });
             }
-            console.log("Bypass :", JSON.stringify(result));
-            console.log("Captcha Success, ", browserId)
+            console.log(result)
             return res.status(200).json({
                 success: true,
                 code: "bypass",
@@ -512,6 +500,7 @@ const checkTokenByPass = async (req, res) => {
             message: 'browserId là bắt buộc'
         });
     } catch (error) {
+
         return res.status(500).json({
             success: false,
             message: 'Lỗi server',
@@ -564,7 +553,7 @@ module.exports = {
     addTokenCaptcha,
     payToken,
     getTokenAval,
-    createVideoVeo3,
+    createFlow,
     getTaskStatus,
     checkTokenByPass,
     getHope,
