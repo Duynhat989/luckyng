@@ -309,7 +309,7 @@ const createFlow = async (req, res) => {
 
                     const veo3 = new veo3Video(flow_auth_token, is_proxy, proxy, userAgent, secChUa)
                     const result = await veo3.generateVideo(body_json, flow_url);
-                    if (JSON.stringify(result).includes("reCAPTCHA evaluation failed")) {
+                    if (JSON.stringify(result).includes("reCAPTCHA evaluation failed") && !JSON.stringify(result).includes("PUBLIC_ERROR_UNUSUAL_ACTIVITY_TOO_MUCH_TRAFFIC")) {
                         statusTasks.set(taskId, {
                             success: false,
                             code: "processing",
