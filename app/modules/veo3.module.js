@@ -10,7 +10,7 @@ class veo3Video {
         }
         this.userAgent = userAgent;
         this.secChUa = secChUa;
-        console.log("[PROXY] Using:", `${this.userAgent}|${this.secChUa}`);
+        console.log("[USER AGENT] :", `${this.userAgent}|${this.agent}`);
     }
 
     buildProxyAgent(proxy) {
