@@ -101,7 +101,7 @@ class FlowAPI {
         }
     }
     async _getRequestNANO(taskId) {
-        const res = await fetch(`${this.baseNANO}task-status?taskId=${encodeURIComponent(taskId)}`, {
+        const res = await fetch(`${this.baseNANO}task-status?taskId=${taskId}`, {
             method: "GET",
             headers: {
                 "x-api-key": this.NANO_KEY,
