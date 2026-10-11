@@ -5,12 +5,12 @@ class veo3Video {
     constructor(access_token = "", is_proxy = false, proxy = "", userAgent = "", secChUa = "") {
         this.access_token = access_token;
         this.agent = null;
-        if (is_proxy && proxy) {
+        if (proxy) {
             this.agent = this.buildProxyAgent(proxy);
         }
         this.userAgent = userAgent;
         this.secChUa = secChUa;
-        console.log("[USER AGENT] :", `${this.userAgent}|${this.secChUa}`);
+        // console.log("[USER AGENT] :", `${this.userAgent}|${this.secChUa}`);
     }
 
 
