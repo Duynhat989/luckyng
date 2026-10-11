@@ -56,9 +56,6 @@ class veo3Video {
                 headers,
                 body: JSON.stringify(bodyJson),
             };
-            console.log("urlRequest :", urlRequest);
-            console.log("this.access_token :", this.access_token);
-            console.log("bodyJson :", bodyJson);
             // QUAN TRỌNG: Chỉ thêm agent khi có proxy
             if (this.agent) {
                 options.agent = this.agent;
