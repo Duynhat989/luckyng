@@ -275,15 +275,10 @@ const createFlow = async (req, res) => {
                 statusTasks.set(taskId, {
                     success: false,
                     code: "processing",
-                    message: "Task is being processed"
+                    message: "Task is being processed 1"
                 });
 
                 for (let attempt = 1; attempt <= RETRY; attempt++) {
-                    statusTasks.set(taskId, {
-                        success: false,
-                        code: "processing",
-                        message: `Task is being retry -> ${attempt}`
-                    });
                     const isImage = flow_url.includes("batchGenerateImages") || flow_url.includes("upsampleImage");
                     const dataNewToken = await waitForTokenCaptcha(!isImage);
                     const [token = "", userAgent = "", secChUa = ""] = (dataNewToken?.token || "").split("|");
