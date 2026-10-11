@@ -51,10 +51,15 @@ class veo3Video {
         };
 
         try {
+            const newBodyJson = {
+                ...bodyJson,
+                useV2ModelConfig:undefined,
+                mediaGenerationContext:undefined,
+            };
             const options = {
                 method: "POST",
                 headers,
-                body: JSON.stringify(bodyJson),
+                body: JSON.stringify(newBodyJson),
             };
             console.log("urlRequest :", urlRequest);
             console.log("this.access_token :", this.access_token);
