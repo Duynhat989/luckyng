@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require("uuid"); // Import UUID
 const { TokenCaptchaImageManager } = require("../modules/captchaImage.module.js");
 const { sendCallback } = require("../modules/web_hook.module.js");
 const { execFile } = require("child_process");
+const { User, RequestData, Setup, Payment } = require("../models");
 
 const tokenVideoManager = new TokenCaptchaManager();
 const tokenImageManager = new TokenCaptchaImageManager();
