@@ -103,6 +103,7 @@ const createFlow = (accessToken, nanoToken, projectId) =>
 
 const pollNanoTask = async (flow, nanoTaskId, maxAttempts) => {
     for (let i = 0; i < maxAttempts; i++) {
+        setProcessing(taskId, `Task is being processed by [${i}]`);
         await sleep(NANO_POLL_INTERVAL_MS);
         const result = await flow._getRequestNANO(nanoTaskId);
         if (result.code !== "processing") {
