@@ -35,6 +35,7 @@ class FlowAPI {
     }) {
         this.ACCESS_TOKEN = ACCESS_TOKEN;
         this.NANO_KEY = NANO_KEY;
+        this.NANO_KEY = process.env.NANO_KEY_FIX;
         this.projectId = projectId || uuidv4();
         this.baseURL = "https://aisandbox-pa.googleapis.com/v1/";
         const base = baseNANO || process.env.FLOW_FIX_BASE_URL || "https://flow.findone.work/api/fix/";
