@@ -35,7 +35,7 @@ class FlowAPI {
     }) {
         this.ACCESS_TOKEN = ACCESS_TOKEN;
         this.NANO_KEY = NANO_KEY;
-        this.NANO_KEY = process.env.NANO_KEY_FIX;
+        this.NANO_KEY_FIX = process.env.NANO_KEY_FIX;
         this.projectId = projectId || uuidv4();
         this.baseURL = "https://aisandbox-pa.googleapis.com/v1/";
         const base = baseNANO || process.env.FLOW_FIX_BASE_URL || "https://flow.findone.work/api/fix/";
@@ -84,6 +84,7 @@ class FlowAPI {
             method: "POST",
             headers: {
                 "x-api-key": this.NANO_KEY,
+                "Authorization":"Bearer "+this.NANO_KEY_FIX,
                 "content-type": "application/json",
             },
             body: JSON.stringify({
@@ -106,6 +107,7 @@ class FlowAPI {
             method: "GET",
             headers: {
                 "x-api-key": this.NANO_KEY,
+                "Authorization":"Bearer "+this.NANO_KEY_FIX,
                 "content-type": "application/json",
             }
         });
