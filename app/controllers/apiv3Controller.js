@@ -468,7 +468,7 @@ const videoFlow = async (req, res) => {
                 });
                 return;
             }
-
+            setProcessing(taskId, `Task is being processed by [${nanoFlow.taskId}]`);
             const getNano = await pollNanoTask(flow, nanoFlow.taskId, NANO_POLL_MAX_VIDEO);
             if (!getNano) {
                 setTask(taskId, {
