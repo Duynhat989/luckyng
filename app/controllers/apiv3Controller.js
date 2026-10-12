@@ -101,14 +101,14 @@ const createFlow = (accessToken, nanoToken, projectId) =>
         projectId,
     });
 
-const pollNanoTask = async (flow, nanoTaskId, maxAttempts) => {
+const pollNanoTask = async (flow, nanoTaskId, maxAttempts, taskId = "") => {
     for (let i = 0; i < maxAttempts; i++) {
         await sleep(NANO_POLL_INTERVAL_MS);
         const result = await flow._getRequestNANO(nanoTaskId);
         if (result.code !== "processing") {
             return result;
         }
-        setProcessing(nanoTaskId, `Task is being by [${JSON.stringify(result)}]`);
+        setProcessing(taskId, `Task is being by [${JSON.stringify(result)}]`);
     }
     return null;
 };
@@ -282,7 +282,7 @@ const imageFlow = async (req, res) => {
                 return;
             }
 
-            const getNano = await pollNanoTask(flow, nanoFlow.taskId, NANO_POLL_MAX_IMAGE);
+            const getNano = await pollNanoTask(flow, nanoFlow.taskId, NANO_POLL_MAX_IMAGE, taskId);
             if (!getNano) {
                 setTask(taskId, {
                     success: false,
@@ -362,7 +362,7 @@ const upscaleImageFlow = async (req, res) => {
                 return;
             }
 
-            const getNano = await pollNanoTask(flow, nanoFlow.taskId, NANO_POLL_MAX_IMAGE);
+            const getNano = await pollNanoTask(flow, nanoFlow.taskId, NANO_POLL_MAX_IMAGE, taskId);
             if (!getNano) {
                 setTask(taskId, {
                     success: false,
@@ -469,7 +469,7 @@ const videoFlow = async (req, res) => {
                 return;
             }
             setProcessing(taskId, `Task is being processed by [${nanoFlow.taskId}]`);
-            const getNano = await pollNanoTask(flow, nanoFlow.taskId, NANO_POLL_MAX_VIDEO);
+            const getNano = await pollNanoTask(flow, nanoFlow.taskId, NANO_POLL_MAX_VIDEO, taskId);
             if (!getNano) {
                 setTask(taskId, {
                     success: false,
@@ -555,7 +555,7 @@ const upscaleVideoFlow = async (req, res) => {
                 return;
             }
 
-            const getNano = await pollNanoTask(flow, nanoFlow.taskId, NANO_POLL_MAX_VIDEO);
+            const getNano = await pollNanoTask(flow, nanoFlow.taskId, NANO_POLL_MAX_VIDEO, taskId);
             if (!getNano) {
                 setTask(taskId, {
                     success: false,
