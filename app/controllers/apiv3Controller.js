@@ -108,7 +108,7 @@ const pollNanoTask = async (flow, nanoTaskId, maxAttempts) => {
         if (result.code !== "processing") {
             return result;
         }
-        setProcessing(taskId, `Task is being by [${JSON.stringify(result)}]`);
+        setProcessing(nanoTaskId, `Task is being by [${JSON.stringify(result)}]`);
     }
     return null;
 };
