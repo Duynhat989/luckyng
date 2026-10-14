@@ -285,26 +285,26 @@ const createFlow = async (req, res) => {
                     if (!token) continue;
                     if (body_json?.clientContext?.recaptchaContext) {
                         try {
-                            body_json.clientContext.recaptchaContext.token = token
+                            body_json.clientContext.recaptchaContext.token = token.trim()
                         } catch (error) {
                             console.error("Error setting recaptchaContext token:", error);
                         }
                     } else {
                         if (body_json?.agentClientContext?.recaptchaContext)
                         {
-                            try { body_json.agentClientContext.recaptchaContext.token = token; } catch { }
+                            try { body_json.agentClientContext.recaptchaContext.token = token.trim(); } catch { }
                         }else{
-                            try { body_json.clientContext = { recaptchaToken: token }; } catch { }
+                            try { body_json.clientContext = { recaptchaToken: token.trim() }; } catch { }
                         }
                     }
                     if (flow_url.includes("batchGenerateImages")) {
                         for (let i = 0; i < body_json.requests.length; i++) {
                             if (body_json.requests[i]?.clientContext?.recaptchaContext) {
-                                try { body_json.requests[i].clientContext.recaptchaContext.token = token; } catch (error) {
+                                try { body_json.requests[i].clientContext.recaptchaContext.token = token.trim(); } catch (error) {
                                     console.error("Error setting recaptchaContext token for image:", error);
                                 }
                             } else {
-                                try { body_json.requests[i].clientContext.recaptchaToken = token; } catch { }
+                                try { body_json.requests[i].clientContext.recaptchaToken = token.trim(); } catch { }
                             }
                         }
                     }
