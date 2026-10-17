@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require("uuid"); // Import UUID
 const { TokenCaptchaImageManager } = require("../modules/captchaImage.module.js");
 const { sendCallback } = require("../modules/web_hook.module.js");
 const { execFile } = require("child_process");
-const { User, RequestData, Setup, Payment } = require("../models");
+const { Setup } = require("../models");
 
 const tokenVideoManager = new TokenCaptchaManager();
 const tokenImageManager = new TokenCaptchaImageManager();
@@ -150,7 +150,10 @@ const payToken = async (req, res) => {
     try {
         // 2️⃣ Lấy captcha token
         const dataNewToken = await waitForTokenCaptcha(requireType === "video");
-        const [token = "", userAgent = "", secChUa = ""] = (dataNewToken?.token || "").split("|");
+        const [rawToken = "", rawUserAgent = "", rawSecChUa = ""] = (dataNewToken?.token || "").split("|");
+        const token = rawToken.trim();
+        const userAgent = rawUserAgent.trim();
+        const secChUa = rawSecChUa.trim();
         if (!token) {
             throw { code: 408, message: "Captcha token timeout" };
         }
@@ -192,7 +195,7 @@ const getTokenAval = async (req, res) => {
 
 
 
-const MAX_VEO_TASK = 40;
+const MAX_VEO_TASK = 200;
 const RETRY = 150;
 const VEO_QUEUE_RESTART_LIMIT = 100;
 
@@ -275,47 +278,53 @@ const createFlow = async (req, res) => {
                 statusTasks.set(taskId, {
                     success: false,
                     code: "processing",
-                    message: "Task is being processed 1"
+                    message: "Task is being processed",
+                    userId,
                 });
 
                 for (let attempt = 1; attempt <= RETRY; attempt++) {
                     const isImage = flow_url.includes("batchGenerateImages") || flow_url.includes("upsampleImage");
                     const dataNewToken = await waitForTokenCaptcha(!isImage);
-                    const [token = "", userAgent = "", secChUa = ""] = (dataNewToken?.token || "").split("|");
+                    const [rawToken = "", rawUserAgent = "", rawSecChUa = ""] = (dataNewToken?.token || "").split("|");
+                    const token = rawToken.trim();
+                    const userAgent = rawUserAgent.trim();
+                    const secChUa = rawSecChUa.trim();
                     if (!token) continue;
                     if (body_json?.clientContext?.recaptchaContext) {
                         try {
-                            body_json.clientContext.recaptchaContext.token = token.trim();
+                            body_json.clientContext.recaptchaContext.token = token;
                         } catch (error) {
                             console.error("Error setting recaptchaContext token:", error);
                         }
                     } else {
-                        if (body_json?.agentClientContext?.recaptchaContext)
-                        {
-                            try { body_json.agentClientContext.recaptchaContext.token = token.trim(); } catch { }
-                        }else{
-                            try { body_json.clientContext = { recaptchaToken: token.trim() }; } catch { }
+                        if (body_json?.agentClientContext?.recaptchaContext) {
+                            try { body_json.agentClientContext.recaptchaContext.token = token; } catch { }
+                        } else {
+                            try { body_json.clientContext = { recaptchaToken: token }; } catch { }
                         }
                     }
                     if (flow_url.includes("batchGenerateImages")) {
                         for (let i = 0; i < body_json.requests.length; i++) {
                             if (body_json.requests[i]?.clientContext?.recaptchaContext) {
-                                try { body_json.requests[i].clientContext.recaptchaContext.token = token.trim(); } catch (error) {
+                                try { body_json.requests[i].clientContext.recaptchaContext.token = token; } catch (error) {
                                     console.error("Error setting recaptchaContext token for image:", error);
                                 }
                             } else {
-                                try { body_json.requests[i].clientContext.recaptchaToken = token.trim(); } catch { }
+                                try { body_json.requests[i].clientContext.recaptchaToken = token; } catch { }
                             }
                         }
                     }
-                    console.log("body_json :", JSON.stringify(body_json));
-                    const veo3 = new veo3Video(flow_auth_token, is_proxy, proxy, userAgent, secChUa)
+
+                    const veo3 = new veo3Video(flow_auth_token, is_proxy, proxy, userAgent, secChUa);
                     const result = await veo3.generateVideo(body_json, flow_url);
                     if (JSON.stringify(result).includes("reCAPTCHA evaluation failed")) {
                         statusTasks.set(taskId, {
                             success: false,
                             code: "processing",
-                            message: `Task is being step ${attempt}`
+                            message: `Task is being step ${attempt}`,
+                            userId,
+                            userAgent,
+                            secChUa,
                         });
                         await new Promise(r => setTimeout(r, 1000));
                         continue;
@@ -324,17 +333,22 @@ const createFlow = async (req, res) => {
                     /* ====== SUCCESS ====== */
                     statusTasks.set(taskId, {
                         success: true,
+                        code: "success",
                         message: "successfully",
-                        result
+                        result,
+                        userId,
+                        userAgent,
+                        secChUa,
                     });
 
                     sendCallback(taskId, {
                         taskId,
                         success: true,
+                        code: "success",
                         message: "successfully",
                         result
-                    })
-                    logsData.success += 1
+                    });
+                    logsData.success += 1;
                     return;
                 }
 
@@ -343,35 +357,34 @@ const createFlow = async (req, res) => {
                     success: false,
                     code: "failed",
                     message: "All attempts failed",
-                    isRefund: true
+                    isRefund: true,
+                    userId,
                 });
-
 
                 sendCallback(taskId, {
                     success: false,
                     code: "failed",
                     message: "All attempts failed",
                     isRefund: true
-                })
-                logsData.error += 1
+                });
+                logsData.error += 1;
 
             } catch (err) {
-
-                logsData.error += 1
+                logsData.error += 1;
                 statusTasks.set(taskId, {
                     success: false,
                     code: "error",
-                    message: err.message
+                    message: err.message,
+                    userId,
                 });
 
                 sendCallback(taskId, {
                     success: false,
                     code: "error",
                     message: err.message
-                })
+                });
                 throw err;
-            }
-            finally {
+            } finally {
                 clearData(taskId);
             }
         };

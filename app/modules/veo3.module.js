@@ -8,8 +8,8 @@ class veo3Video {
         if (proxy) {
             this.agent = this.buildProxyAgent(proxy);
         }
-        this.userAgent = userAgent;
-        this.secChUa = secChUa;
+        this.userAgent = (userAgent || "").trim();
+        this.secChUa = (secChUa || "").trim();
     }
 
     buildProxyAgent(proxy) {
