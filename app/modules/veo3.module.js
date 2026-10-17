@@ -1,23 +1,20 @@
 const fetch = require("node-fetch");
 const { HttpsProxyAgent } = require("https-proxy-agent");
 
-
 class veo3Video {
     constructor(access_token = "", is_proxy = false, proxy = "", userAgent = "", secChUa = "") {
         this.access_token = access_token;
-        this.proxy = proxy;
         this.agent = null;
-        if (this.proxy) {
-            this.agent = this.buildProxyAgent(this.proxy);
+        if (proxy) {
+            this.agent = this.buildProxyAgent(proxy);
         }
         this.userAgent = userAgent;
         this.secChUa = secChUa;
-        console.log("[USER AGENT] :", `${this.userAgent}|${this.secChUa}`);
     }
 
     buildProxyAgent(proxy) {
         const parts = proxy.split(":");
-        // Kiểm tra số lượng phần tử của parts
+
         if (parts.length === 2) {
             const [host, port] = parts;
             const url = `http://${host}:${port}`;
@@ -50,7 +47,7 @@ class veo3Video {
             "sec-ch-ua-platform": '"Windows"',
             "user-agent": this.userAgent || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
         };
-        // console.log("Body Json:", JSON.stringify(bodyJson));
+
         try {
             const options = {
                 method: "POST",
@@ -62,13 +59,9 @@ class veo3Video {
             if (this.agent) {
                 options.agent = this.agent;
             }
-            console.log("options :", JSON.stringify(options));
-            console.log("urlRequest :", urlRequest);
-            console.log("this.agent :", this.agent);
-            console.log("bodyJson :", JSON.stringify(bodyJson));
+
             const response = await fetch(urlRequest, options);
             const result = await response.json();
-            console.log("result :", JSON.stringify(result));
             return result;
         } catch (error) {
             return {

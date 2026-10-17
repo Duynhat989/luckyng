@@ -1,7 +1,27 @@
 const fetch = require("node-fetch");
 const { v4: uuidv4 } = require("uuid");
-const { parseBase64, VEO_3_1_FAST, VEO_3_1_FAST_LOWER } = require("../utils/config.veo");
-const FLOW_FIX_BASE_URL = process.env.FLOW_FIX_BASE_URL;
+const { parseBase64, getModelsV3 } = require("../utils/config.veo");
+
+const DEFAULT_VIDEO_RATIO = "VIDEO_ASPECT_RATIO_LANDSCAPE";
+
+const resolveVideoAspectRatio = (aspectRatio) => aspectRatio || DEFAULT_VIDEO_RATIO;
+
+const resolveVideoModelKey = (modelGroup, aspectRatio, type, imageCount) => {
+    const ar = resolveVideoAspectRatio(aspectRatio);
+    const typeConfig = modelGroup?.[ar]?.[type];
+    if (!typeConfig) return null;
+
+    if (type === "frame") {
+        if (imageCount === 0) return typeConfig.textToVideo;
+        if (imageCount === 1) return typeConfig.imageToVideo;
+        if (imageCount === 2) return typeConfig.interpolation;
+        return null;
+    }
+
+    if (imageCount === 0) return typeConfig.textToVideo;
+    return typeConfig.referenceToVideo || typeConfig.imageToVideo;
+};
+
 class FlowAPI {
     constructor({
         ACCESS_TOKEN,
@@ -13,7 +33,11 @@ class FlowAPI {
         this.NANO_KEY = NANO_KEY;
         this.projectId = projectId || uuidv4();
         this.baseURL = "https://aisandbox-pa.googleapis.com/v1/";
-        this.baseNANO = baseNANO || FLOW_FIX_BASE_URL;
+        const raw =
+            baseNANO ||
+            process.env.FLOW_FIX_BASE_URL ||
+            "http://localhost:2053/api/fix/";
+        this.baseNANO = raw.endsWith("/") ? raw : `${raw}/`;
     }
 
     _getBaseHeaders() {
@@ -22,9 +46,9 @@ class FlowAPI {
             "content-type": "application/json",
             "origin": "https://labs.google",
             "referer": "https://labs.google/",
-            "user-agent": "Mozilla/5.0",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
             "priority": "u=1, i",
-            "sec-ch-ua": `"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"`,
+            "sec-ch-ua": `"Google Chrome";v="149", "Chromium";v="149", "Not)A;Brand";v="24"`,
             "sec-ch-ua-mobile": "?0",
             "sec-ch-ua-platform": `"Windows"`,
             "sec-fetch-dest": "empty",
@@ -54,17 +78,21 @@ class FlowAPI {
     }
 
     async _requestNANO(baseRequest) {
+        const payload = {
+            flow_url: baseRequest.url,
+            flow_auth_token: this.ACCESS_TOKEN,
+            body_json: baseRequest.body,
+        };
+        if (typeof this.enterpriseCall === "function") {
+            return this.enterpriseCall(payload);
+        }
         const res = await fetch(`${this.baseNANO}create-flow`, {
             method: "POST",
             headers: {
                 "authorization": `Bearer ${this.NANO_KEY}`,
                 "content-type": "application/json",
             },
-            body: JSON.stringify({
-                flow_url: baseRequest.url,
-                flow_auth_token: this.ACCESS_TOKEN,
-                body_json: baseRequest.body
-            })
+            body: JSON.stringify(payload)
         });
 
         const text = await res.text();
@@ -76,6 +104,9 @@ class FlowAPI {
         }
     }
     async _getRequestNANO(taskId) {
+        if (typeof this.enterpriseStatus === "function") {
+            return this.enterpriseStatus(taskId);
+        }
         const res = await fetch(`${this.baseNANO}task-status?taskId=${taskId}`, {
             method: "GET",
             headers: {
@@ -211,28 +242,39 @@ class FlowAPI {
     async generateVideo({
         promptText,
         imageInputs = [],
-        aspectRatio = "VIDEO_ASPECT_RATIO_LANDSCAPE", //VIDEO_ASPECT_RATIO_PORTRAIT
-        videoModel = "VEO_3_FAST",
-        type = "frame"
+        aspectRatio = "VIDEO_ASPECT_RATIO_LANDSCAPE",
+        videoModel = "veo3Fast",
+        type = "frame",
+        tier = "ultra"
     }) {
-
-        const config = videoModel === "VEO_3_FAST"
-            ? VEO_3_1_FAST[aspectRatio]
-            : VEO_3_1_FAST_LOWER[aspectRatio];
-        if (!config) {
-            return {
-                result: `Invalid request body`
-            };
+        const modelsRegistry = getModelsV3(tier);
+        const modelGroup = modelsRegistry[videoModel];
+        if (!modelGroup) {
+            return { result: `Invalid videoModel: ${videoModel}` };
         }
-        const baseRequest = {
+
+        const resolvedAspectRatio = resolveVideoAspectRatio(aspectRatio);
+        const videoModelKey = resolveVideoModelKey(
+            modelGroup,
             aspectRatio,
+            type,
+            imageInputs.length
+        );
+
+        if (!videoModelKey) {
+            return { result: `Invalid request: ${videoModel}/${resolvedAspectRatio}/${type}/${imageInputs.length} image(s)` };
+        }
+
+        const baseRequest = {
+            aspectRatio: resolvedAspectRatio,
             seed: Math.floor(100000 + Math.random() * 900000),
             textInput: {
                 structuredPrompt: {
                     parts: [{ text: promptText }]
                 }
             },
-            metadata: {}
+            metadata: {},
+            videoModelKey
         };
 
         const baseBody = {
@@ -256,39 +298,22 @@ class FlowAPI {
         let url = "";
 
         if (type === "frame") {
-
             if (imageInputs.length === 0) {
                 url = "video:batchAsyncGenerateVideoText";
-                baseRequest.videoModelKey = config.model.text;
-
             } else if (imageInputs.length === 1) {
                 url = "video:batchAsyncGenerateVideoStartImage";
-                baseRequest.videoModelKey = config.model.i2t;
-
-                baseRequest.startImage = {
-                    mediaId: imageInputs[0]
-                };
-
+                baseRequest.startImage = { mediaId: imageInputs[0] };
             } else if (imageInputs.length === 2) {
                 url = "video:batchAsyncGenerateVideoStartAndEndImage";
-                baseRequest.videoModelKey = config.model.i2t_fl;
-
-                baseRequest.startImage = {
-                    mediaId: imageInputs[0]
-                };
-                baseRequest.endImage = {
-                    mediaId: imageInputs[1]
-                };
-
+                baseRequest.startImage = { mediaId: imageInputs[0] };
+                baseRequest.endImage = { mediaId: imageInputs[1] };
             } else {
                 throw new Error("Too many images in API Flow frame.");
             }
-
+        } else if (imageInputs.length === 0) {
+            url = "video:batchAsyncGenerateVideoText";
         } else {
-
             url = "video:batchAsyncGenerateVideoReferenceImages";
-            baseRequest.videoModelKey = config.model.r2v;
-
             baseRequest.referenceImages = imageInputs.map(id => ({
                 mediaId: id,
                 imageUsageType: "IMAGE_USAGE_TYPE_ASSET"
@@ -361,15 +386,14 @@ class FlowAPI {
     // Load link video
 
     async getMediaUrl(mediaId, cookie) {
-        const url = `https://labs.google/fx/api/trpc/media.getMediaUrlRedirect?name=${mediaId}`
+        const url = `https://labs.google/fx/api/trpc/media.getMediaUrlRedirect?name=${mediaId}`;
         try {
-
             const res = await fetch(url, {
                 headers: { cookie }
-            })
-            return res.url
+            });
+            return res.url;
         } catch (error) {
-            return `${url}|error`
+            return `${url}|error`;
         }
     }
 }
