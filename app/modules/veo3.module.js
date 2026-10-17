@@ -62,7 +62,10 @@ class veo3Video {
             if (this.agent) {
                 options.agent = this.agent;
             }
-
+            console.log("options :", JSON.stringify(options));
+            console.log("urlRequest :", urlRequest);
+            console.log("this.agent :", this.agent);
+            console.log("bodyJson :", JSON.stringify(bodyJson));
             const response = await fetch(urlRequest, options);
             const result = await response.json();
             console.log("result :", JSON.stringify(result));
