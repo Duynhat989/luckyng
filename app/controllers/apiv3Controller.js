@@ -1,7 +1,6 @@
 const { v4: uuidv4 } = require("uuid");
 const FlowAPI = require("../modules/flow_v3.module");
 const veo = require("./veoController");
-const { sendUserWebhook } = require("../modules/webhook.module");
 const { sleep, getModelsV3, MODELS_V3_TIERS } = require("../utils/config.veo");
 
 const statusTasks = new Map();
@@ -71,9 +70,6 @@ const setTask = (taskId, status) => {
     if (normalized.code === "success" || normalized.code === "error") {
         const { userId } = taskMeta.get(taskId) || {};
         if (userId) {
-            sendUserWebhook(taskId, userId, normalized).catch((err) =>
-                console.error(`Webhook error [${taskId}]:`, err)
-            );
         }
         try {
             require("../modules/enterpriseGate.module").notifyEnterpriseTask(taskId);
