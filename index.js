@@ -98,6 +98,7 @@ app.use((req, res, next) => {
                     && !bodyStr.includes('Browser ID bị từ chối')
                     && !bodyStr.includes('Not login')
                     && !bodyStr.includes('taskId is required')
+                    && !bodyStr.includes('Invalid API key')
                 ) {
                     statusReport.error += 1;
                     statusReport.apiStats[url].error += 1;
