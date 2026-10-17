@@ -13,6 +13,7 @@ router.delete("/api-keys/:id", apiKeyController.remove);
 
 router.get("/stats/by-user", apiKeyController.statsByUserDay);
 router.get("/stats/by-key", apiKeyController.statsByKeyDay);
+router.get("/stats/success-requests", apiKeyController.statsSuccessRequests);
 
 router.post("/webhooks", webhookController.create);
 router.get("/webhooks", webhookController.list);

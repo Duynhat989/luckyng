@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const { Op, fn, col } = require("sequelize");
-const { ApiKey, ApiKeyDailyUsage, User } = require("../models");
+const { ApiKey, ApiKeyDailyUsage, User, RequestData } = require("../models");
 const { getTodayInVietnam } = require("../utils/date");
 const { dbQueue } = require("../utils/dbQueue");
 const {
@@ -324,6 +324,79 @@ exports.statsByKeyDay = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: rows,
+      range: { from: dateFrom, to: dateTo },
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.statsSuccessRequests = async (req, res) => {
+  try {
+    const { from, to, page = "1", pageSize = "20" } = req.query;
+    const today = getTodayInVietnam();
+    const dateFrom = from || today;
+    const dateTo = to || today;
+    const take = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 20));
+    const currentPage = Math.max(1, parseInt(page, 10) || 1);
+    const offset = (currentPage - 1) * take;
+
+    const where = {
+      userId: req.user.id,
+      createdAt: {
+        [Op.between]: [
+          new Date(`${dateFrom}T00:00:00+07:00`),
+          new Date(`${dateTo}T23:59:59.999+07:00`),
+        ],
+      },
+    };
+
+    const [result, summary] = await Promise.all([
+      RequestData.findAndCountAll({
+        where,
+        attributes: [
+          "id",
+          "taskId",
+          "attempt",
+          "requestType",
+          "flowUrl",
+          "createdAt",
+        ],
+        order: [["createdAt", "DESC"]],
+        limit: take,
+        offset,
+      }),
+      RequestData.findAll({
+        where,
+        attributes: [
+          [fn("COUNT", col("id")), "total"],
+          [fn("AVG", col("attempt")), "avgAttempt"],
+          [fn("MAX", col("attempt")), "maxAttempt"],
+        ],
+        raw: true,
+      }),
+    ]);
+
+    const s = summary[0] || {};
+    const total = parseInt(s.total, 10) || 0;
+    const totalPages = Math.max(1, Math.ceil(total / take));
+
+    return res.status(200).json({
+      success: true,
+      data: result.rows,
+      summary: {
+        total,
+        avgAttempt: s.avgAttempt ? Number(Number(s.avgAttempt).toFixed(2)) : 0,
+        maxAttempt: parseInt(s.maxAttempt, 10) || 0,
+      },
+      pagination: {
+        page: currentPage,
+        pageSize: take,
+        total,
+        totalPages,
+        hasPrev: currentPage > 1,
+        hasNext: currentPage < totalPages,
+      },
       range: { from: dateFrom, to: dateTo },
     });
   } catch (err) {

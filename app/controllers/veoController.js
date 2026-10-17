@@ -6,7 +6,40 @@ const { v4: uuidv4 } = require("uuid"); // Import UUID
 const { TokenCaptchaImageManager } = require("../modules/captchaImage.module.js");
 const { sendCallback } = require("../modules/web_hook.module.js");
 const { execFile } = require("child_process");
-const { Setup } = require("../models");
+const { Setup, RequestData } = require("../models");
+const { dbQueue } = require("../utils/dbQueue");
+
+function resolveRequestType(flowUrl = "") {
+  if (flowUrl.includes("batchGenerateImages") || flowUrl.includes("upsampleImage")) {
+    return "image";
+  }
+  return "video";
+}
+
+function saveSuccessRequestData({
+  userId,
+  taskId,
+  attempt,
+  flowUrl,
+  userAgent,
+  secChUa,
+}) {
+  return dbQueue
+    .add(() =>
+      RequestData.create({
+        userId,
+        taskId,
+        attempt,
+        flowUrl: String(flowUrl || "").slice(0, 512),
+        requestType: resolveRequestType(flowUrl),
+        userAgent: userAgent || null,
+        secChUa: secChUa || null,
+      })
+    )
+    .catch((err) => {
+      console.error("[requestData] save error:", err.message);
+    });
+}
 
 const tokenVideoManager = new TokenCaptchaManager();
 const tokenImageManager = new TokenCaptchaImageManager();
@@ -329,7 +362,6 @@ const createFlow = async (req, res) => {
                         await new Promise(r => setTimeout(r, 1000));
                         continue;
                     }
-
                     /* ====== SUCCESS ====== */
                     statusTasks.set(taskId, {
                         success: true,
@@ -337,6 +369,15 @@ const createFlow = async (req, res) => {
                         message: "successfully",
                         result,
                         userId,
+                        userAgent,
+                        secChUa,
+                    });
+
+                    saveSuccessRequestData({
+                        userId,
+                        taskId,
+                        attempt,
+                        flowUrl,
                         userAgent,
                         secChUa,
                     });
