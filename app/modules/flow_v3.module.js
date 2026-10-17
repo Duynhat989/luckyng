@@ -1,7 +1,7 @@
 const fetch = require("node-fetch");
 const { v4: uuidv4 } = require("uuid");
 const { parseBase64, VEO_3_1_FAST, VEO_3_1_FAST_LOWER } = require("../utils/config.veo");
-
+const FLOW_FIX_BASE_URL = process.env.FLOW_FIX_BASE_URL;
 class FlowAPI {
     constructor({
         ACCESS_TOKEN,
@@ -13,7 +13,7 @@ class FlowAPI {
         this.NANO_KEY = NANO_KEY;
         this.projectId = projectId || uuidv4();
         this.baseURL = "https://aisandbox-pa.googleapis.com/v1/";
-        this.baseNANO = baseNANO ;
+        this.baseNANO = baseNANO || FLOW_FIX_BASE_URL;
     }
 
     _getBaseHeaders() {
