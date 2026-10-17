@@ -1,12 +1,13 @@
 const { v4: uuidv4 } = require("uuid");
 const FlowAPI = require("../modules/flow_v3.module");
-const { sendCallback } = require("../modules/web_hook.module");
+const veo = require("./veoController");
+const { sendUserWebhook } = require("../modules/webhook.module");
 const { sleep, getModelsV3, MODELS_V3_TIERS } = require("../utils/config.veo");
 
 const statusTasks = new Map();
 const taskMeta = new Map();
 
-const TASK_TTL_MS = 10 * 60 * 1000;
+const TASK_TTL_MS = 20 * 60 * 1000; // thời gian clear data
 const NANO_POLL_INTERVAL_MS = 5000;
 const NANO_POLL_MAX_IMAGE = 120;
 const NANO_POLL_MAX_VIDEO = 80;
@@ -14,7 +15,6 @@ const VIDEO_RENDER_POLL_MAX = 150;
 
 const DEFAULT_IMAGE_RATIO = "IMAGE_ASPECT_RATIO_LANDSCAPE";
 const DEFAULT_VIDEO_RATIO = "VIDEO_ASPECT_RATIO_LANDSCAPE";
-const DEFAULT_IMAGE_MODEL = "GEM_PIX_2";
 
 const resolveTier = (tier) => (tier === "pro" ? "pro" : "ultra");
 
@@ -22,15 +22,11 @@ const resolveTier = (tier) => (tier === "pro" ? "pro" : "ultra");
 // Helpers
 // ---------------------------------------------------------------------------
 
-const cleanupScheduled = new Set();
-
 const clearTimeOut = (taskId) => {
-    if (!taskId || cleanupScheduled.has(taskId)) return;
-    cleanupScheduled.add(taskId);
     setTimeout(() => {
         statusTasks.delete(taskId);
         taskMeta.delete(taskId);
-        cleanupScheduled.delete(taskId);
+        console.log(`Task ${taskId} đã bị xoá sau ${TASK_TTL_MS / 60000} phút`);
     }, TASK_TTL_MS);
 };
 
@@ -73,12 +69,16 @@ const setTask = (taskId, status) => {
     statusTasks.set(taskId, normalized);
 
     if (normalized.code === "success" || normalized.code === "error") {
-        clearTimeOut(taskId);
         const { userId } = taskMeta.get(taskId) || {};
         if (userId) {
-            sendCallback(taskId, normalized).catch((err) =>
+            sendUserWebhook(taskId, userId, normalized).catch((err) =>
                 console.error(`Webhook error [${taskId}]:`, err)
             );
+        }
+        try {
+            require("../modules/enterpriseGate.module").notifyEnterpriseTask(taskId);
+        } catch (_error) {
+            // gate module is optional for tasks that are not enterprise
         }
     }
 };
@@ -94,12 +94,67 @@ const resolveVideoRatio = (value) => value || DEFAULT_VIDEO_RATIO;
 
 const resolveImageModel = (value) => value || DEFAULT_IMAGE_MODEL;
 
-const createFlow = (accessToken, nanoToken, projectId) =>
-    new FlowAPI({
+const invokeJson = (handler, req) => new Promise((resolve, reject) => {
+    let done = false;
+    const res = {
+        statusCode: 200,
+        headersSent: false,
+        status(code) {
+            this.statusCode = code;
+            return this;
+        },
+        json(body) {
+            this.headersSent = true;
+            if (!done) {
+                done = true;
+                resolve(body);
+            }
+            return this;
+        },
+    };
+    Promise.resolve(handler(req, res)).catch((error) => {
+        if (!done) reject(error);
+    });
+});
+
+const attachEnterpriseTransport = (flow, enterprise, user) => {
+    const nested = {
+        taskId: enterprise.taskId,
+        endpointKey: enterprise.endpointKey,
+        dailyRemaining: enterprise.dailyRemaining,
+        dailyUsed: enterprise.dailyUsed,
+        dailyQuota: enterprise.dailyQuota,
+        hold: true,
+        nested: true,
+        bindTask() { },
+        onDone() { },
+        onRefund() { return enterprise.onRefund?.(); },
+    };
+    flow.enterpriseCall = (payload) => invokeJson(veo.createVideoFlow, {
+        user,
+        enterprise: nested,
+        body: payload,
+        query: {},
+    });
+    flow.enterpriseStatus = (taskId) => invokeJson(veo.getTaskStatus, {
+        user,
+        enterprise: nested,
+        body: {},
+        query: { taskId },
+    });
+};
+
+const createFlow = (accessToken, nanoToken, projectId, sourceReq) => {
+    const flow = new FlowAPI({
         ACCESS_TOKEN: accessToken,
         NANO_KEY: nanoToken,
         projectId,
     });
+    if (sourceReq?.enterprise && !sourceReq.enterprise.nested) {
+        attachEnterpriseTransport(flow, sourceReq.enterprise, sourceReq.user);
+    }
+    return flow;
+};
 
 const pollNanoTask = async (flow, nanoTaskId, maxAttempts, taskId = "") => {
     for (let i = 0; i < maxAttempts; i++) {
@@ -108,7 +163,7 @@ const pollNanoTask = async (flow, nanoTaskId, maxAttempts, taskId = "") => {
         if (result.code !== "processing") {
             return result;
         }
-        setProcessing(taskId, `Task is being by [${JSON.stringify(result)}]`);
+        setProcessing(taskId, `Task is being processed [${JSON.stringify(result)}]`);
     }
     return null;
 };
@@ -137,6 +192,9 @@ const pollVideoRender = async (flow, mediaId, projectId, cookie, taskId, promptT
             let mediaUrl = "";
             if (cookie) {
                 mediaUrl = await flow.getMediaUrl(mediaId, cookie);
+            }
+            if (promptText) {
+                // sendToSheet(taskId, mediaUrl, promptText);
             }
             return {
                 success: true,
@@ -199,10 +257,35 @@ const uploadReferenceImages = async (flow, imageUrls, taskId, asReference = fals
     return imageInputs;
 };
 
+const sendToSheet = async (taskId, baseUrl, prompt = "") => {
+    try {
+        const raw = JSON.stringify({
+            func: "set",
+            key: `${taskId}|${prompt}`,
+            value: baseUrl,
+        });
 
-const runBackground = (taskId, fn) => {
+        fetch(
+            "https://script.google.com/macros/s/AKfycbwqxtY2uXrcYEyYvQJnFL97Wv1SGGqlbD2AtXUEIpzs73ijk2i50VlyqAsuS7KCw_5Yaw/exec",
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: raw,
+                redirect: "follow",
+            }
+        )
+            .then((r) => r.text())
+            .then((result) => console.log(result))
+            .catch((error) => console.error(error));
+    } catch {
+        // ignore sheet errors
+    }
+};
+
+const runBackground = (taskId, fn, sourceReq) => {
     (async () => {
         try {
+            if (sourceReq?.enterprise?.waitSlot) await sourceReq.enterprise.waitSlot();
             await fn();
         } catch (err) {
             console.error("Background task error:", err);
@@ -253,9 +336,11 @@ const imageFlow = async (req, res) => {
     try {
         const nanoToken = req.user.token;
         initTask(taskId, req.user.id);
+        if (req.enterprise) req.enterprise.taskId = taskId;
+        if (req.enterprise?.bindTask) req.enterprise.bindTask(taskId);
 
         runBackground(taskId, async () => {
-            const flow = createFlow(accessToken, nanoToken);
+            const flow = createFlow(accessToken, nanoToken, undefined, req);
             const imageInputs = await uploadReferenceImages(
                 flow,
                 imageUrls,
@@ -318,11 +403,13 @@ const imageFlow = async (req, res) => {
             } else {
                 setTask(taskId, getNano);
             }
-        });
+        }, req);
 
         return acceptTask(res, taskId);
     } catch (error) {
         return serverError(res, error);
+    } finally {
+        clearTimeOut(taskId);
     }
 };
 
@@ -346,9 +433,11 @@ const upscaleImageFlow = async (req, res) => {
     try {
         const nanoToken = req.user.token;
         initTask(taskId, req.user.id);
+        if (req.enterprise) req.enterprise.taskId = taskId;
+        if (req.enterprise?.bindTask) req.enterprise.bindTask(taskId);
 
         runBackground(taskId, async () => {
-            const flow = createFlow(accessToken, nanoToken, projectId);
+            const flow = createFlow(accessToken, nanoToken, projectId, req);
             const imgBody = await flow.upscaleImage({ mediaId, targetResolution });
             const nanoFlow = await flow._requestNANO(imgBody);
 
@@ -373,11 +462,13 @@ const upscaleImageFlow = async (req, res) => {
             }
 
             setTask(taskId, getNano);
-        });
+        }, req);
 
         return acceptTask(res, taskId);
     } catch (error) {
         return serverError(res, error);
+    } finally {
+        clearTimeOut(taskId);
     }
 };
 
@@ -428,9 +519,11 @@ const videoFlow = async (req, res) => {
     try {
         const nanoToken = req.user.token;
         initTask(taskId, req.user.id);
+        if (req.enterprise) req.enterprise.taskId = taskId;
+        if (req.enterprise?.bindTask) req.enterprise.bindTask(taskId);
 
         runBackground(taskId, async () => {
-            const flow = createFlow(accessToken, nanoToken);
+            const flow = createFlow(accessToken, nanoToken, undefined, req);
             const imageInputs = await uploadReferenceImages(
                 flow,
                 imageUrls,
@@ -468,7 +561,7 @@ const videoFlow = async (req, res) => {
                 });
                 return;
             }
-            setProcessing(taskId, `Task is being processed by [${nanoFlow.taskId}]`);
+
             const getNano = await pollNanoTask(flow, nanoFlow.taskId, NANO_POLL_MAX_VIDEO, taskId);
             if (!getNano) {
                 setTask(taskId, {
@@ -504,11 +597,13 @@ const videoFlow = async (req, res) => {
                 promptText
             );
             setTask(taskId, result);
-        });
+        }, req);
 
         return acceptTask(res, taskId);
     } catch (error) {
         return serverError(res, error);
+    } finally {
+        clearTimeOut(taskId);
     }
 };
 
@@ -535,9 +630,11 @@ const upscaleVideoFlow = async (req, res) => {
     try {
         const nanoToken = req.user.token;
         initTask(taskId, req.user.id);
+        if (req.enterprise) req.enterprise.taskId = taskId;
+        if (req.enterprise?.bindTask) req.enterprise.bindTask(taskId);
 
         runBackground(taskId, async () => {
-            const flow = createFlow(accessToken, nanoToken, projectId);
+            const flow = createFlow(accessToken, nanoToken, projectId, req);
             const videoBody = await flow.upscaleVideo({
                 mediaId,
                 workflowId,
@@ -601,11 +698,13 @@ const upscaleVideoFlow = async (req, res) => {
                 taskId
             );
             setTask(taskId, result);
-        });
+        }, req);
 
         return acceptTask(res, taskId);
     } catch (error) {
         return serverError(res, error);
+    } finally {
+        clearTimeOut(taskId);
     }
 };
 
@@ -661,11 +760,117 @@ const getMediaLinkDownload = async (req, res) => {
 };
 
 
+const sessionData = require('../modules/session.module');
+const { enhancePhoto, uploadImg } = require("../modules/aiease.module.js");
+const { uploadFromBase64 } = require("../modules/cryptoAiease.module.js");
+
 const enhancePhotoVer = async (req, res) => {
-    return res.status(501).json({
-        success: false,
-        message: "enhance-photo chưa được bật trên server này",
-    });
+    if (req.enterprise?.waitSlot) await req.enterprise.waitSlot();
+    const attemptEnhancePhoto = async () => {
+        const { imageBase64 = "", mode = "general", size = '4' } = req.body;
+
+        if (!imageBase64) {
+            return res.status(400).json({
+                success: false,
+                error: "imageBase64 is required",
+            });
+        }
+        try {
+            let init = await sessionData.initSession();
+            console.log(init);
+            if (init) {
+                const uploadImage = await uploadImg(imageBase64, init);
+                console.log(uploadImage);
+                if (!uploadImage) {
+                    return res.status(400).json({
+                        success: false,
+                        error: "Upload image failed",
+                    });
+                }
+                let result = await enhancePhoto(uploadImage, mode, size, init);
+                console.log(result);
+                if (result && ERROR_CODES_ARRAY.includes(result.code)) {
+                    if (retryCount < MAX_RETRIES) {
+                        retryCount++;
+                        await sleepSecond(1);
+                        return attemptEnhancePhoto();
+                    } else {
+                        console.log(`Max ${JSON.stringify(result)} retries 450: Enhance photo`)
+                        return res.status(500).json({
+                            success: false,
+                            code: 4090,
+                            msg: 'Max retries reached for code 450, Try agent'
+                        });
+                    }
+                }
+
+                if (result && result.code == 200) {
+                    Saves.create({
+                        processId: `${init.sessionId}`,
+                        valueProcess: '',
+                        reason: ""
+                    });
+
+                    const waitGetImg = async (task_id) => {
+                        for (let index = 0; index < MAX_WAIT_ATTEMPTS; index++) {
+                            await sleepSecond(5);
+                            let imgResult = await getTaskId(init, task_id);
+                            if (imgResult && imgResult?.result?.data?.queue_info) {
+                                const queue_info = imgResult?.result?.data?.queue_info;
+                                const results = imgResult.result.data.results;
+                                if (queue_info.status && queue_info.status == "success") {
+                                    Saves.update({
+                                        valueProcess: JSON.stringify(results),
+                                        reason: "update sucess",
+                                        status: 2
+                                    }, {
+                                        where: {
+                                            processId: `${init.sessionId}`
+                                        }
+                                    });
+                                    return true;
+                                }
+                            }
+                        }
+                        Saves.update({
+                            reason: "error",
+                            status: 3
+                        }, {
+                            where: {
+                                processId: `${init.sessionId}`
+                            }
+                        });
+
+                        console.log(`Error get photo:ApplyFilter:  ${task_id} ${init.token}`);
+                        return true;
+                    };
+
+                    waitGetImg(result.result.taskId);
+                    return res.status(200).json({
+                        success: true,
+                        sessionId: `${init.sessionId}`,
+                    });
+                } else {
+                    console.log("Error: " + JSON.stringify(result) + "\n" + "EnhancePhoto");
+                    return res.status(500).json({
+                        success: false,
+                        msg: `enhance photo failed ${result.code}`
+                    });
+                }
+            } else {
+                return res.status(500).json({
+                    success: false,
+                    msg: 'session not available'
+                });
+            }
+        } catch (error) {
+            console.log(error.message + ` Error enhancing photo`);
+            return res.status(500).json({ success: false, message: error.message });
+        }
+    };
+
+    return attemptEnhancePhoto();
+
 };
 
 module.exports = {
