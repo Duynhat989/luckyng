@@ -308,7 +308,7 @@ const createFlow = async (req, res) => {
                             }
                         }
                     }
-
+                    console.log("body_json :", JSON.stringify(body_json));
                     const veo3 = new veo3Video(flow_auth_token, is_proxy, proxy, userAgent, secChUa)
                     const result = await veo3.generateVideo(body_json, flow_url);
                     if (JSON.stringify(result).includes("reCAPTCHA evaluation failed")) {
