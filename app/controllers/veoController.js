@@ -377,7 +377,7 @@ const createFlow = async (req, res) => {
                         userId,
                         taskId,
                         attempt,
-                        flowUrl,
+                        flowUrl:flow_url,
                         userAgent,
                         secChUa,
                     });
