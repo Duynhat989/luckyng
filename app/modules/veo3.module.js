@@ -5,8 +5,8 @@ class veo3Video {
     constructor(access_token = "", is_proxy = false, proxy = "", userAgent = "", secChUa = "") {
         this.access_token = access_token;
         this.agent = null;
-        this.agent = this.buildProxyAgent(proxy);
         if (proxy) {
+            this.agent = this.buildProxyAgent(proxy);
         }
         this.userAgent = userAgent;
         this.secChUa = secChUa;
@@ -15,10 +15,7 @@ class veo3Video {
 
 
     buildProxyAgent(proxy) {
-
-        const newProxy = "92.113.90.35:46840:q3l7YsGpZi8ddwO:iMh6H5Vf7688TSO"
-
-        const parts = newProxy.split(":");
+        const parts = proxy.split(":");
 
         if (parts.length === 2) {
             const [host, port] = parts;
@@ -66,7 +63,7 @@ class veo3Video {
 
             const response = await fetch(urlRequest, options);
             const result = await response.json();
-            console.log("result :", JSON.stringify(result));
+            // console.log("result :", JSON.stringify(result));
             return result;
         } catch (error) {
             return {
