@@ -1,113 +1,79 @@
+const fetch = require("node-fetch");
+const { HttpsProxyAgent } = require("https-proxy-agent");
 
-const { fetch, ProxyAgent } = require("undici");
 
 class veo3Video {
-    constructor(
-        access_token = "",
-        is_proxy = false,
-        proxy = "",
-        userAgent = "",
-        secChUa = ""
-    ) {
+    constructor(access_token = "", is_proxy = false, proxy = "", userAgent = "", secChUa = "") {
+        
+        this.proxy = "zp71204-104758.zingproxy.com:49177:y89p3e:H1l4QC85s";
+
         this.access_token = access_token;
-        this.dispatcher = null;
+        this.agent = null;
+        if (this.proxy) {
+            this.agent = this.buildProxyAgent(this.proxy);
+        }
         this.userAgent = userAgent;
         this.secChUa = secChUa;
-        this.proxy = "zp71204-104758.zingproxy.com:49177:y89p3e:H1l4QC85s";
-        // Chỉ dùng proxy khi được bật rõ ràng.
-        if (this.proxy) {
-            this.dispatcher = new ProxyAgent(
-                this.buildProxyUrl(this.proxy)
-            );
-        }
-
-        console.log("[HTTP CLIENT] undici");
-        console.log("[PROXY ENABLED]", Boolean(this.dispatcher));
+        console.log("[USER AGENT] :", `${this.userAgent}|${this.secChUa}`);
     }
 
-    buildProxyUrl(proxy) {
-        // Format: host:port hoặc host:port:user:pass
+    buildProxyAgent(proxy) {
         const parts = proxy.split(":");
 
         if (parts.length === 2) {
             const [host, port] = parts;
-            return `http://${host}:${port}`;
+            const url = `http://${host}:${port}`;
+            console.log("[PROXY] Using:", url);
+            return new HttpsProxyAgent(url);
         }
 
         if (parts.length === 4) {
-            const [host, port, username, password] = parts;
-
-            return `http://${encodeURIComponent(username)}:${
-                encodeURIComponent(password)
-            }@${host}:${port}`;
+            const [host, port, user, pass] = parts;
+            const url = `http://${user}:${pass}@${host}:${port}`;
+            console.log("[PROXY] Using:", `http://${user}:******@${host}:${port}`);
+            return new HttpsProxyAgent(url);
         }
 
-        throw new Error("Invalid proxy format");
+        console.warn("[PROXY] Invalid proxy format:", proxy);
+        return null;
     }
 
     async generateVideo(bodyJson, urlRequest) {
         const headers = {
-            authorization: `Bearer ${this.access_token}`,
-            "content-type": "application/json",
+            "authorization": `Bearer ${this.access_token}`,
+            "content-type": "text/plain;charset=UTF-8",
+            "origin": "https://labs.google",
+            "referer": "https://labs.google/",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "sec-ch-ua": this.secChUa || '"Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "user-agent": this.userAgent || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
         };
-
-        if (this.userAgent) {
-            headers["user-agent"] = this.userAgent;
-        }
-
-        // Chỉ thêm Client Hints khi endpoint thực sự cần.
-        if (this.secChUa) {
-            headers["sec-ch-ua"] = this.secChUa;
-        }
-
-        const options = {
-            method: "POST",
-            headers,
-            body: JSON.stringify(bodyJson),
-            signal: AbortSignal.timeout(60_000),
-        };
-
-        // Undici dùng dispatcher thay cho agent.
-        if (this.dispatcher) {
-            options.dispatcher = this.dispatcher;
-        }
-
+        // console.log("Body Json:", JSON.stringify(bodyJson));
         try {
+            const options = {
+                method: "POST",
+                headers,
+                body: JSON.stringify(bodyJson),
+            };
+
+            // QUAN TRỌNG: Chỉ thêm agent khi có proxy
+            if (this.agent) {
+                options.agent = this.agent;
+            }
+
             const response = await fetch(urlRequest, options);
-            const text = await response.text();
-
-            let data;
-
-            try {
-                data = JSON.parse(text);
-            } catch {
-                data = { raw: text };
-            }
-
-            if (!response.ok) {
-                return {
-                    success: false,
-                    status: response.status,
-                    error: "HTTP request failed",
-                    data,
-                };
-            }
-
-            return data;
+            const result = await response.json();
+            console.log("result :", JSON.stringify(result));
+            return result;
         } catch (error) {
             return {
                 success: false,
-                error: error.message,
-                code: error.code || error.cause?.code || null,
-                name: error.name,
+                error: error.message || JSON.stringify(error)
             };
-        }
-    }
-
-    async close() {
-        if (this.dispatcher) {
-            await this.dispatcher.close();
-            this.dispatcher = null;
         }
     }
 }
