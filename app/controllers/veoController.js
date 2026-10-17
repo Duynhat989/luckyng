@@ -285,7 +285,7 @@ const createFlow = async (req, res) => {
                     if (!token) continue;
                     if (body_json?.clientContext?.recaptchaContext) {
                         try {
-                            body_json.clientContext.recaptchaContext.token = token.trim()
+                            body_json.clientContext.recaptchaContext.token = token.trim();
                         } catch (error) {
                             console.error("Error setting recaptchaContext token:", error);
                         }
