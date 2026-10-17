@@ -5,7 +5,7 @@ class veo3Video {
     constructor(access_token = "", is_proxy = false, proxy = "", userAgent = "", secChUa = "") {
         this.access_token = access_token;
         this.agent = null;
-        this.proxy = "92.113.90.35:46840:q3l7YsGpZi8ddwO:iMh6H5Vf7688TSO";
+        this.proxy = proxy;
         if (this.proxy) {
             this.agent = this.buildProxyAgent(this.proxy);
         }
