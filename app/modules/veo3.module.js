@@ -19,7 +19,7 @@ class veo3Video {
 
     buildProxyAgent(proxy) {
         const parts = proxy.split(":");
-
+        // Kiểm tra số lượng phần tử của parts
         if (parts.length === 2) {
             const [host, port] = parts;
             const url = `http://${host}:${port}`;
