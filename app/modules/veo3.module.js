@@ -11,6 +11,7 @@ class veo3Video {
         }
         this.userAgent = (userAgent || "").trim();
         this.secChUa = (secChUa || "").trim();
+        
     }
 
     buildProxyAgent(proxy) {
@@ -63,6 +64,7 @@ class veo3Video {
 
             const response = await fetch(urlRequest, options);
             const result = await response.json();
+            console.log("[RESPONSE] result:", result);
             return result;
         } catch (error) {
             return {
