@@ -13,7 +13,7 @@ class veo3Video {
         this.dispatcher = null;
         this.userAgent = userAgent;
         this.secChUa = secChUa;
-        this.proxy = "92.113.90.35:46840:q3l7YsGpZi8ddwO:iMh6H5Vf7688TSO";
+        this.proxy = "zp71204-104758.zingproxy.com:49177:y89p3e:H1l4QC85s";
         // Chỉ dùng proxy khi được bật rõ ràng.
         if (this.proxy) {
             this.dispatcher = new ProxyAgent(
