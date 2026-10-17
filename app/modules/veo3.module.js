@@ -4,9 +4,8 @@ const { HttpsProxyAgent } = require("https-proxy-agent");
 
 class veo3Video {
     constructor(access_token = "", is_proxy = false, proxy = "", userAgent = "", secChUa = "") {
-        
-        
         this.access_token = access_token;
+        this.proxy = proxy;
         this.agent = null;
         if (this.proxy) {
             this.agent = this.buildProxyAgent(this.proxy);
