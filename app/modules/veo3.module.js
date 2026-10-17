@@ -5,7 +5,7 @@ const { HttpsProxyAgent } = require("https-proxy-agent");
 class veo3Video {
     constructor(access_token = "", is_proxy = false, proxy = "", userAgent = "", secChUa = "") {
         
-        this.proxy = "zp71204-104758.zingproxy.com:49177:y89p3e:H1l4QC85s";
+        this.proxy = "92.113.90.35:46840:q3l7YsGpZi8ddwO:iMh6H5Vf7688TSO";
 
         this.access_token = access_token;
         this.agent = null;
