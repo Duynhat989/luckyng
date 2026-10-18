@@ -145,7 +145,7 @@ const { rqHope } = require("./app/controllers/veoController.js");
 
 const CPU_POLL_MS = 15_000;
 const CPU_HIGH_PERCENT = 90;
-const CPU_HIGH_LIMIT_MS = 1.5 * 60 * 1000;
+const CPU_HIGH_LIMIT_MS = 60 * 1000;
 
 let cpuSample = process.cpuUsage();
 let cpuSampleAt = Date.now();
