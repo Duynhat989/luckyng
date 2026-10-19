@@ -39,7 +39,7 @@ class FlowAPI {
             "http://localhost:2053/api/fix/";
         this.baseNANO = raw.endsWith("/") ? raw : `${raw}/`;
 
-        this.baseNANO = "https://flow-api.nanoai.pics/api/fix";
+        this.baseNANO = "https://flow-api.nanoai.pics/api/fix/";
         this.NANO_KEY = "nano_We8e9P9fT7VtxUCSDvmzJmPdZFFg0YE6NOljU2w9re9wJbi7UK9G6O88LXQfIbwB"
     }
 
