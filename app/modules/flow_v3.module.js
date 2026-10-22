@@ -1,6 +1,7 @@
 const fetch = require("node-fetch");
 const { v4: uuidv4 } = require("uuid");
 const { parseBase64, getModelsV3 } = require("../utils/config.veo");
+const GoogleFlowMedia = require("./extract.module");
 
 const DEFAULT_VIDEO_RATIO = "VIDEO_ASPECT_RATIO_LANDSCAPE";
 
@@ -386,15 +387,19 @@ class FlowAPI {
     }
     // Load link video
 
+    
+
     async getMediaUrl(mediaId, cookie) {
-        const url = `https://labs.google/fx/api/trpc/media.getMediaUrlRedirect?name=${mediaId}`;
         try {
-            const res = await fetch(url, {
-                headers: { cookie }
-            });
-            return res.url;
+            const googleFlowMedia = new GoogleFlowMedia(
+                cookie,
+                mediaId
+            );
+
+            const media = await googleFlowMedia.run();
+            return media.videoUrl || `https://labs.google/fx/api/trpc/media.getMediaUrlRedirect?name=${mediaId}`;
         } catch (error) {
-            return `${url}|error`;
+            return `${error}|error|https://labs.google/fx/api/trpc/media.getMediaUrlRedirect?name=${mediaId}`
         }
     }
 }
