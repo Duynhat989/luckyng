@@ -137,7 +137,7 @@ const PORT = 2053;
 server.listen(PORT, () => {
     console.log(`Listen: ${PORT}`);
     warmKeyCache();
-    sendTelegramMessage("CPU: Start service");
+    sendTelegramMessage("CPU: Start service TrongNg");
 });
 
 const { execFile } = require("child_process");
@@ -208,7 +208,7 @@ async function pollCpuAndRestartIfStuck() {
     cpuRestartScheduled = true;
     const requestHope = await rqHope();
     await Promise.race([
-        sendTelegramMessage(`[CPU High Alert] CPU: ${cpuPercent.toFixed(1)}% for ${Math.round(CPU_HIGH_LIMIT_MS / 1000 / 60)} minutes, ${JSON.stringify(requestHope)}`),
+        sendTelegramMessage(`TrongNg [CPU High Alert] CPU: ${cpuPercent.toFixed(1)}% for ${Math.round(CPU_HIGH_LIMIT_MS / 1000 / 60)} minutes, ${JSON.stringify(requestHope)}`),
         new Promise((resolve) => setTimeout(resolve, 5000)),
     ]);
     setTimeout(() => {
