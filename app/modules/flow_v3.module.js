@@ -1,8 +1,13 @@
 const fetch = require("node-fetch");
 const { v4: uuidv4 } = require("uuid");
-const { parseBase64, getModelsV3 } = require("../utils/config.veo");
-const GoogleFlowMedia = require("./extract.module");
+const {
+    parseBase64,
+    getModelsV3,
+    isOmniLengthModel,
+    withOmniLengthSeconds,
+} = require("../utils/config.veo");
 
+const GoogleFlowMedia = require('./extract.module.js');
 const DEFAULT_VIDEO_RATIO = "VIDEO_ASPECT_RATIO_LANDSCAPE";
 
 const resolveVideoAspectRatio = (aspectRatio) => aspectRatio || DEFAULT_VIDEO_RATIO;
@@ -39,7 +44,6 @@ class FlowAPI {
             process.env.FLOW_FIX_BASE_URL ||
             "http://localhost:2053/api/fix/";
         this.baseNANO = raw.endsWith("/") ? raw : `${raw}/`;
-        
     }
 
     _getBaseHeaders() {
@@ -247,7 +251,8 @@ class FlowAPI {
         aspectRatio = "VIDEO_ASPECT_RATIO_LANDSCAPE",
         videoModel = "veo3Fast",
         type = "frame",
-        tier = "ultra"
+        tier = "ultra",
+        length_seconds = 10,
     }) {
         const modelsRegistry = getModelsV3(tier);
         const modelGroup = modelsRegistry[videoModel];
@@ -256,7 +261,7 @@ class FlowAPI {
         }
 
         const resolvedAspectRatio = resolveVideoAspectRatio(aspectRatio);
-        const videoModelKey = resolveVideoModelKey(
+        let videoModelKey = resolveVideoModelKey(
             modelGroup,
             aspectRatio,
             type,
@@ -265,6 +270,10 @@ class FlowAPI {
 
         if (!videoModelKey) {
             return { result: `Invalid request: ${videoModel}/${resolvedAspectRatio}/${type}/${imageInputs.length} image(s)` };
+        }
+
+        if (isOmniLengthModel(videoModel)) {
+            videoModelKey = withOmniLengthSeconds(videoModelKey, length_seconds);
         }
 
         const baseRequest = {
@@ -386,8 +395,6 @@ class FlowAPI {
         });
     }
     // Load link video
-
-    
 
     async getMediaUrl(mediaId, cookie) {
         try {

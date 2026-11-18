@@ -63,27 +63,88 @@ function parseBase64(base64String) {
 }
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+/** Model dùng suffix _{N}s theo length_seconds (mặc định 10, min 3, max 15) */
+const OMNI_LENGTH_MODELS = new Set(["omniFlash", "omniFlashV2"]);
+const OMNI_LENGTH_DEFAULT = 10;
+const OMNI_LENGTH_MIN = 3;
+const OMNI_LENGTH_MAX = 15;
+
+const isOmniLengthModel = (videoModel) => OMNI_LENGTH_MODELS.has(String(videoModel || ""));
+
+/**
+ * Chuẩn hóa length_seconds cho omniFlash / omniFlashV2.
+ * @returns {{ ok: true, value: number|null } | { ok: false, error: string }}
+ * value = null khi model không dùng độ dài động.
+ */
+const resolveOmniLengthSeconds = (videoModel, lengthSeconds) => {
+    if (!isOmniLengthModel(videoModel)) {
+        return { ok: true, value: null };
+    }
+    const raw =
+        lengthSeconds === undefined || lengthSeconds === null || lengthSeconds === ""
+            ? OMNI_LENGTH_DEFAULT
+            : Number(lengthSeconds);
+    if (!Number.isInteger(raw) || raw < OMNI_LENGTH_MIN || raw > OMNI_LENGTH_MAX) {
+        return {
+            ok: false,
+            error: `invalid length_seconds. For ${videoModel} use integer ${OMNI_LENGTH_MIN}–${OMNI_LENGTH_MAX} (default ${OMNI_LENGTH_DEFAULT})`,
+        };
+    }
+    return { ok: true, value: raw };
+};
+
+/** Gắn _{N}s vào key base (abra_t2v → abra_t2v_10s) */
+const withOmniLengthSeconds = (modelKey, lengthSeconds) => {
+    if (!modelKey || lengthSeconds == null) return modelKey;
+    const base = String(modelKey).replace(/_\d+s$/i, "");
+    return `${base}_${lengthSeconds}s`;
+};
+
+// Base keys (không có _Ns) — duration gắn lúc generate qua length_seconds
 const modelsV3 = {
-    omniFlash: {
+    omniFlashV2: {
         VIDEO_ASPECT_RATIO_PORTRAIT: {
             frame: {
-                textToVideo: "abra_t2v_10s",
-                imageToVideo: "abra_i2v_10s"
+                textToVideo: "macaron_cookie_t2v",
+                imageToVideo: "macaron_cookie_i2v"
             },
             ingredient: {
-                textToVideo: "abra_t2v_10s",
-                referenceToVideo: "abra_r2v_10s"
+                textToVideo: "macaron_cookie_t2v",
+                referenceToVideo: "macaron_cookie_r2v"
             }
         },
 
         VIDEO_ASPECT_RATIO_LANDSCAPE: {
             frame: {
-                textToVideo: "abra_t2v_10s",
-                imageToVideo: "abra_i2v_10s"
+                textToVideo: "macaron_cookie_t2v",
+                imageToVideo: "macaron_cookie_i2v"
             },
             ingredient: {
-                textToVideo: "abra_t2v_10s",
-                referenceToVideo: "abra_r2v_10s"
+                textToVideo: "macaron_cookie_t2v",
+                referenceToVideo: "macaron_cookie_r2v"
+            }
+        }
+    },
+    omniFlash: {
+        VIDEO_ASPECT_RATIO_PORTRAIT: {
+            frame: {
+                textToVideo: "abra_t2v",
+                imageToVideo: "abra_i2v"
+            },
+            ingredient: {
+                textToVideo: "abra_t2v",
+                referenceToVideo: "abra_r2v"
+            }
+        },
+
+        VIDEO_ASPECT_RATIO_LANDSCAPE: {
+            frame: {
+                textToVideo: "abra_t2v",
+                imageToVideo: "abra_i2v"
+            },
+            ingredient: {
+                textToVideo: "abra_t2v",
+                referenceToVideo: "abra_r2v"
             }
         }
     },
@@ -194,7 +255,7 @@ const modelsV3 = {
 /** Pro tier — Omni Flash, Veo 3.1 Lite/Fast/Quality (không có ultra, không Lite low priority) */
 const modelsV3Pro = {
     omniFlash: modelsV3.omniFlash,
-
+    omniFlashV2: modelsV3.omniFlashV2,
     veo3Lite: modelsV3.veo3Lite,
 
     veo3Fast: {
@@ -240,5 +301,12 @@ module.exports = {
     modelsV3,
     modelsV3Pro,
     MODELS_V3_TIERS,
-    getModelsV3
+    getModelsV3,
+    OMNI_LENGTH_MODELS,
+    OMNI_LENGTH_DEFAULT,
+    OMNI_LENGTH_MIN,
+    OMNI_LENGTH_MAX,
+    isOmniLengthModel,
+    resolveOmniLengthSeconds,
+    withOmniLengthSeconds,
 }

@@ -2,7 +2,12 @@ const { v4: uuidv4 } = require("uuid");
 const FlowAPI = require("../modules/flow_v3.module");
 const veo = require("./veoController");
 const { sendCallback } = require("../modules/web_hook.module");
-const { sleep, getModelsV3, MODELS_V3_TIERS } = require("../utils/config.veo");
+const {
+    sleep,
+    getModelsV3,
+    MODELS_V3_TIERS,
+    resolveOmniLengthSeconds,
+} = require("../utils/config.veo");
 
 const statusTasks = new Map();
 const taskMeta = new Map();
@@ -486,6 +491,7 @@ const videoFlow = async (req, res) => {
         type = "frame",
         tier: tierInput = "ultra",
         cookie = "",
+        length_seconds = 10,
     } = req.body;
 
     if (!accessToken || !promptText || !cookie) {
@@ -510,6 +516,14 @@ const videoFlow = async (req, res) => {
         return res.status(400).json({
             success: false,
             error: `invalid videoModel for tier "${tier}". Available: ${availableVideoModels.join(", ")}`,
+        });
+    }
+
+    const lengthResolved = resolveOmniLengthSeconds(videoModel, length_seconds);
+    if (!lengthResolved.ok) {
+        return res.status(400).json({
+            success: false,
+            error: lengthResolved.error,
         });
     }
 
@@ -539,6 +553,7 @@ const videoFlow = async (req, res) => {
                 videoModel,
                 type,
                 tier,
+                length_seconds: lengthResolved.value ?? 10,
             });
 
             if (!videoBody?.url) {

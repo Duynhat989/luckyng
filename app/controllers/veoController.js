@@ -228,7 +228,7 @@ const getTokenAval = async (req, res) => {
 
 
 
-const MAX_VEO_TASK = 500;
+const MAX_VEO_TASK = 200;
 const RETRY = 150;
 const VEO_QUEUE_RESTART_LIMIT = 200;
 
