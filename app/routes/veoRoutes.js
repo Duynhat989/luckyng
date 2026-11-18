@@ -4,7 +4,7 @@ const veoController = require("../controllers/veoController.js");
 const authJwtOrApiKey = require("../middlewares/authJwtOrApiKey.js");
 const createRateLimiter = require("../middlewares/rateLimiter.js");
 
-const rateLimiter = createRateLimiter(1000, 15);
+const rateLimiter = createRateLimiter(1000, 500);
 
 router.get("/get-token", authJwtOrApiKey([1, 3]), rateLimiter, veoController.payToken);
 
