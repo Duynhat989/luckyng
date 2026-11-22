@@ -10,6 +10,56 @@ const {
 const GoogleFlowMedia = require('./extract.module.js');
 const DEFAULT_VIDEO_RATIO = "VIDEO_ASPECT_RATIO_LANDSCAPE";
 
+/** local = gọi /api/flow của chính app; nano = gọi flow-api.nanoai.pics */
+const FLOW_FIX_PRESETS = {
+    local: {
+        baseUrl: "http://localhost:2053/api/flow/",
+        useCallerKey: true,
+    },
+    nano: {
+        baseUrl: "https://flow-api.nanoai.pics/api/flow/",
+        useCallerKey: false,
+    },
+};
+
+const normalizeBaseUrl = (raw) => {
+    const value = String(raw || "").trim();
+    if (!value) return "";
+    return value.endsWith("/") ? value : `${value}/`;
+};
+
+/**
+ * FLOW_FIX_PROVIDER=local|nano
+ * FLOW_FIX_BASE_URL  — override URL (optional)
+ * FLOW_FIX_API_KEY   — bắt buộc khi provider=nano (key remote)
+ */
+const resolveFlowFixConfig = (callerToken) => {
+    const provider = String(process.env.FLOW_FIX_PROVIDER || "local")
+        .trim()
+        .toLowerCase();
+    const preset = FLOW_FIX_PRESETS[provider] || FLOW_FIX_PRESETS.local;
+    const envBase = normalizeBaseUrl(process.env.FLOW_FIX_BASE_URL);
+    // Ưu tiên URL theo provider; FLOW_FIX_BASE_URL chỉ override khi không conflict localhost↔nano
+    let baseNANO = normalizeBaseUrl(preset.baseUrl);
+    if (envBase) {
+        const envIsLocal = /localhost|127\.0\.0\.1/.test(envBase);
+        if (provider === "nano" && envIsLocal) {
+            baseNANO = normalizeBaseUrl(preset.baseUrl);
+        } else if (provider === "local" && !envIsLocal && /nanoai\.pics/.test(envBase)) {
+            baseNANO = normalizeBaseUrl(preset.baseUrl);
+        } else {
+            baseNANO = envBase;
+        }
+    }
+
+    let NANO_KEY = callerToken || "";
+    if (!preset.useCallerKey) {
+        NANO_KEY = String(process.env.FLOW_FIX_API_KEY || "").trim() || NANO_KEY;
+    }
+
+    return { provider, baseNANO, NANO_KEY };
+};
+
 const resolveVideoAspectRatio = (aspectRatio) => aspectRatio || DEFAULT_VIDEO_RATIO;
 
 const resolveVideoModelKey = (modelGroup, aspectRatio, type, imageCount) => {
@@ -36,14 +86,13 @@ class FlowAPI {
         baseNANO
     }) {
         this.ACCESS_TOKEN = ACCESS_TOKEN;
-        this.NANO_KEY = NANO_KEY;
         this.projectId = projectId || uuidv4();
         this.baseURL = "https://aisandbox-pa.googleapis.com/v1/";
-        const raw =
-            baseNANO ||
-            process.env.FLOW_FIX_BASE_URL ||
-            "http://localhost:2053/api/fix/";
-        this.baseNANO = raw.endsWith("/") ? raw : `${raw}/`;
+
+        const resolved = resolveFlowFixConfig(NANO_KEY);
+        this.flowFixProvider = resolved.provider;
+        this.NANO_KEY = resolved.NANO_KEY;
+        this.baseNANO = normalizeBaseUrl(baseNANO) || resolved.baseNANO;
     }
 
     _getBaseHeaders() {

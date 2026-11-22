@@ -36,7 +36,8 @@ const authV3ApiKey = (roles = []) => {
         return res.status(403).json({ success: false, message: "Not forbidden" });
       }
 
-      // Không consume quota ở v3 — ghi nhận khi gọi FLOW_FIX_BASE_URL (/api/fix).
+      // Không consume quota ở v3.
+      // local: quota ghi khi gọi /api/flow nội bộ; nano: dùng FLOW_FIX_API_KEY remote.
 
       req.apiKey = record;
       req.user = {
