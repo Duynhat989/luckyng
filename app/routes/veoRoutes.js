@@ -12,7 +12,7 @@ router.get("/token-aval", authJwtOrApiKey([1, 3]), veoController.getTokenAval);
 
 router.post(
   "/create-flow",
-  authJwtOrApiKey([1, 3], { countUsage: true }),
+  authJwtOrApiKey([1, 3]),
   rateLimiter,
   veoController.createFlow
 );

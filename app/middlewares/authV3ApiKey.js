@@ -1,4 +1,7 @@
-const { resolveApiKeyRecord } = require("../services/apiKeyRuntime.service");
+const {
+  resolveApiKeyRecord,
+  consumeDailyQuota,
+} = require("../services/apiKeyRuntime.service");
 
 function extractV3ApiKey(req) {
   const headerKey = req.headers["x-api-key"];
@@ -15,7 +18,13 @@ function extractV3ApiKey(req) {
   return "";
 }
 
-const authV3ApiKey = (roles = []) => {
+/**
+ * @param {number[]} roles
+ * @param {{ countUsage?: boolean }} options — countUsage=true: đếm + giới hạn /ngày
+ */
+const authV3ApiKey = (roles = [], options = {}) => {
+  const countUsage = options.countUsage === true;
+
   return async (req, res, next) => {
     if (typeof roles === "number") roles = [roles];
 
@@ -36,8 +45,23 @@ const authV3ApiKey = (roles = []) => {
         return res.status(403).json({ success: false, message: "Not forbidden" });
       }
 
-      // Không consume quota ở v3.
-      // local: quota ghi khi gọi /api/flow nội bộ; nano: dùng FLOW_FIX_API_KEY remote.
+      if (countUsage) {
+        const quota = consumeDailyQuota(
+          record.id,
+          record.userId,
+          record.dailyLimit
+        );
+        if (!quota.ok) {
+          return res.status(429).json({
+            success: false,
+            message: "Daily request limit exceeded",
+            dailyLimit: quota.dailyLimit,
+            used: quota.used,
+            statDate: quota.statDate,
+          });
+        }
+        req.quota = quota;
+      }
 
       req.apiKey = record;
       req.user = {

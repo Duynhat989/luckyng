@@ -690,7 +690,7 @@
           </div>
           <div class="login-feature">
             <span class="login-feature-icon">📊</span>
-            <span>Thống kê request theo key / ngày</span>
+            <span>Thống kê request /api/v3 theo key / ngày</span>
           </div>
           <div class="login-feature">
             <span class="login-feature-icon">🛡️</span>
@@ -746,7 +746,7 @@
         <section class="section">
           <div class="section-head">
             <h2>Tạo API key mới</h2>
-            <p>Key được gắn với tài khoản admin đang đăng nhập. Client gọi API với header <code>x-api-key</code>.</p>
+            <p>Key gắn với admin đang đăng nhập. Client gọi <code>/api/v3</code> với <code>x-api-key</code> — mỗi create/upscale đếm 1 request/ngày.</p>
             <p id="quotaInfo" class="quota-info">Đang tải hạn mức…</p>
           </div>
           <div class="section-body">
@@ -866,7 +866,7 @@
         <section class="section">
           <div class="section-head">
             <h2>Thống kê theo API key / ngày</h2>
-            <p>Múi giờ Việt Nam (Asia/Ho_Chi_Minh).</p>
+            <p>Đếm từ <code>/api/v3</code> (images/videos create &amp; upscale). Múi giờ VN (Asia/Ho_Chi_Minh).</p>
           </div>
           <div class="section-body">
             <div class="filter-row">
@@ -892,7 +892,7 @@
         <section class="section">
           <div class="section-head">
             <h2>Lịch sử request thành công</h2>
-            <p>Mỗi dòng là 1 request create-flow OK — cột Attempt cho biết lần thử thứ mấy mới pass.</p>
+            <p>Log captcha local (create-flow OK + attempt). Khác với đếm hạn mức/ngày ở tab Keys/Thống kê (đếm từ /api/v3).</p>
           </div>
           <div class="section-body">
             <div class="filter-row">
