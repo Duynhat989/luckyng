@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const XLSX = require("xlsx");
 const { Op, fn, col } = require("sequelize");
 const { ApiKey, ApiKeyDailyUsage, User, RequestData, V3TaskResult } = require("../models");
 const { getTodayInVietnam } = require("../utils/date");
@@ -9,6 +10,70 @@ const {
   scheduleFlushUsageNow,
   getLiveUsageCount,
 } = require("../services/apiKeyRuntime.service");
+
+const V3_EXPORT_MAX_ROWS = 50000;
+
+function buildV3ResultsWhere(query = {}) {
+  const today = getTodayInVietnam();
+  const dateFrom = query.from || today;
+  const dateTo = query.to || today;
+  const where = {
+    createdAt: {
+      [Op.between]: [
+        new Date(`${dateFrom}T00:00:00+07:00`),
+        new Date(`${dateTo}T23:59:59.999+07:00`),
+      ],
+    },
+  };
+
+  const statusFilter = String(query.status || "").trim().toLowerCase();
+  if (["success", "failed", "error"].includes(statusFilter)) {
+    where.status = statusFilter;
+  }
+
+  const keyId = parseInt(query.apiKeyId, 10);
+  if (Number.isFinite(keyId) && keyId > 0) {
+    where.apiKeyId = keyId;
+  }
+
+  return {
+    where,
+    dateFrom,
+    dateTo,
+    statusFilter: statusFilter || null,
+    keyId: Number.isFinite(keyId) && keyId > 0 ? keyId : null,
+  };
+}
+
+function parseV3ResultFields(raw) {
+  let obj = raw;
+  if (typeof raw === "string") {
+    try {
+      obj = JSON.parse(raw);
+    } catch (_e) {
+      return { message: String(raw), mediaUrl: "", resultJson: String(raw) };
+    }
+  }
+  if (!obj || typeof obj !== "object") {
+    return { message: "", mediaUrl: "", resultJson: String(raw ?? "") };
+  }
+  const data = obj.data || obj.result || {};
+  const mediaUrl =
+    data.mediaUrl ||
+    data.fifeUrl ||
+    data.imageUrl ||
+    data.videoUrl ||
+    data.url ||
+    "";
+  const message = obj.message || obj.error || data.message || "";
+  let resultJson = "";
+  try {
+    resultJson = JSON.stringify(obj);
+  } catch (_e) {
+    resultJson = String(raw ?? "");
+  }
+  return { message, mediaUrl, resultJson };
+}
 
 const STATUS_ON = 1;
 const STATUS_OFF = 2;
@@ -483,32 +548,11 @@ exports.statsV3Results = async (req, res) => {
     const { ensureV3TaskResultSchema } = require("../bootstrap/ensureV3TaskResultSchema");
     await ensureV3TaskResultSchema();
 
-    const { from, to, status, apiKeyId, page = "1", pageSize = "20" } = req.query;
-    const today = getTodayInVietnam();
-    const dateFrom = from || today;
-    const dateTo = to || today;
+    const { page = "1", pageSize = "20" } = req.query;
+    const { where, dateFrom, dateTo, statusFilter, keyId } = buildV3ResultsWhere(req.query);
     const take = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 20));
     const currentPage = Math.max(1, parseInt(page, 10) || 1);
     const offset = (currentPage - 1) * take;
-
-    const where = {
-      createdAt: {
-        [Op.between]: [
-          new Date(`${dateFrom}T00:00:00+07:00`),
-          new Date(`${dateTo}T23:59:59.999+07:00`),
-        ],
-      },
-    };
-
-    const statusFilter = String(status || "").trim().toLowerCase();
-    if (["success", "failed", "error"].includes(statusFilter)) {
-      where.status = statusFilter;
-    }
-
-    const keyId = parseInt(apiKeyId, 10);
-    if (Number.isFinite(keyId) && keyId > 0) {
-      where.apiKeyId = keyId;
-    }
 
     const summaryWhere = { ...where };
 
@@ -574,10 +618,113 @@ exports.statsV3Results = async (req, res) => {
       },
       range: { from: dateFrom, to: dateTo },
       filter: {
-        apiKeyId: Number.isFinite(keyId) && keyId > 0 ? keyId : null,
-        status: statusFilter || null,
+        apiKeyId: keyId,
+        status: statusFilter,
       },
     });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.exportV3ResultsExcel = async (req, res) => {
+  try {
+    const { ensureV3TaskResultSchema } = require("../bootstrap/ensureV3TaskResultSchema");
+    await ensureV3TaskResultSchema();
+
+    const { where, dateFrom, dateTo, statusFilter, keyId } = buildV3ResultsWhere(req.query);
+
+    const total = await V3TaskResult.count({ where });
+    if (total > V3_EXPORT_MAX_ROWS) {
+      return res.status(400).json({
+        success: false,
+        message: `Quá nhiều bản ghi (${total}). Giới hạn xuất ${V3_EXPORT_MAX_ROWS}. Hãy thu hẹp bộ lọc.`,
+        total,
+        max: V3_EXPORT_MAX_ROWS,
+      });
+    }
+
+    const rows = await V3TaskResult.findAll({
+      where,
+      attributes: ["id", "taskId", "apiKeyId", "status", "result", "createdAt"],
+      order: [["createdAt", "DESC"]],
+    });
+
+    const keyIds = [
+      ...new Set(
+        rows
+          .map((r) => r.apiKeyId)
+          .filter((id) => id != null && Number.isFinite(Number(id)))
+      ),
+    ];
+    const keyRows = keyIds.length
+      ? await ApiKey.findAll({
+          where: { id: { [Op.in]: keyIds } },
+          attributes: ["id", "label", "keyValue"],
+        })
+      : [];
+    const keyMap = Object.fromEntries(keyRows.map((k) => [k.id, k]));
+
+    const sheetRows = rows.map((row) => {
+      const plain = row.toJSON ? row.toJSON() : row;
+      const key = plain.apiKeyId != null ? keyMap[plain.apiKeyId] : null;
+      const parsed = parseV3ResultFields(plain.result);
+      const createdAt = plain.createdAt
+        ? new Date(plain.createdAt).toLocaleString("vi-VN", {
+            timeZone: "Asia/Ho_Chi_Minh",
+          })
+        : "";
+      return {
+        ID: plain.id,
+        CreatedAt: createdAt,
+        ApiKeyId: plain.apiKeyId ?? "",
+        ApiKeyLabel: key?.label || "",
+        ApiKeyValue: key?.keyValue || "",
+        Status: plain.status || "",
+        TaskId: plain.taskId || "",
+        Message: parsed.message || "",
+        MediaUrl: parsed.mediaUrl || "",
+        ResultJSON: parsed.resultJson || "",
+      };
+    });
+
+    const workbook = XLSX.utils.book_new();
+    const sheet = XLSX.utils.json_to_sheet(
+      sheetRows.length
+        ? sheetRows
+        : [
+            {
+              ID: "",
+              CreatedAt: "",
+              ApiKeyId: "",
+              ApiKeyLabel: "",
+              ApiKeyValue: "",
+              Status: "",
+              TaskId: "",
+              Message: "",
+              MediaUrl: "",
+              ResultJSON: "",
+            },
+          ]
+    );
+    XLSX.utils.book_append_sheet(workbook, sheet, "v3Results");
+
+    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    const filterBits = [
+      dateFrom,
+      dateTo,
+      statusFilter || "all",
+      keyId ? `key${keyId}` : "allkeys",
+    ].join("_");
+    const filename = `v3-results_${filterBits}_${stamp}.xlsx`;
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    return res.status(200).send(Buffer.from(buffer));
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

@@ -59,7 +59,8 @@
     "tesseract.js": "^5.0.3",
     "undici": "^8.12.2",
     "uuid": "^9.0.1",
-    "word-extractor": "^1.0.4"
+    "word-extractor": "^1.0.4",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@gradio/client": "^1.13.1"

@@ -15,6 +15,7 @@ router.get("/stats/by-user", apiKeyController.statsByUserDay);
 router.get("/stats/by-key", apiKeyController.statsByKeyDay);
 router.get("/stats/success-requests", apiKeyController.statsSuccessRequests);
 router.get("/stats/v3-results", apiKeyController.statsV3Results);
+router.get("/stats/v3-results/export", apiKeyController.exportV3ResultsExcel);
 
 router.post("/webhooks", webhookController.create);
 router.get("/webhooks", webhookController.list);

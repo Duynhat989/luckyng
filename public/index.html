@@ -1038,7 +1038,10 @@
               </div>
               <div class="field field-inline">
                 <label>&nbsp;</label>
-                <button type="button" class="btn btn-primary" id="loadV3ResultsBtn">Tải kết quả</button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button type="button" class="btn btn-primary" id="loadV3ResultsBtn">Tải kết quả</button>
+                  <button type="button" class="btn btn-ghost" id="exportV3ResultsBtn">Xuất Excel</button>
+                </div>
               </div>
             </div>
             <div class="stats-summary" id="v3ResultsSummary" style="margin:16px 0"></div>
@@ -1800,9 +1803,59 @@
     });
 
 
+    function buildV3ResultsQuery() {
+      const from = document.getElementById("v3From")?.value || todayLocal();
+      const to = document.getElementById("v3To")?.value || todayLocal();
+      const status = document.getElementById("v3StatusFilter")?.value || "";
+      const apiKeyId = document.getElementById("v3ApiKeyFilter")?.value || "";
+      const q = new URLSearchParams({ from, to });
+      if (status) q.set("status", status);
+      if (apiKeyId) q.set("apiKeyId", apiKeyId);
+      return q;
+    }
+
+    async function exportV3ResultsExcel() {
+      const q = buildV3ResultsQuery();
+      const token = getToken();
+      const res = await fetch("/api/admin/stats/v3-results/export?" + q, {
+        headers: token ? { Authorization: "Bearer " + token } : {},
+      });
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok) {
+        let message = "Xuất Excel thất bại";
+        if (contentType.includes("application/json")) {
+          const data = await res.json().catch(() => ({}));
+          message = data.message || message;
+        }
+        throw new Error(message);
+      }
+      const blob = await res.blob();
+      const disp = res.headers.get("content-disposition") || "";
+      const match = /filename=\"?([^\";]+)\"?/i.exec(disp);
+      const filename = match?.[1] || ("v3-results-" + todayLocal() + ".xlsx");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
     document.getElementById("loadV3ResultsBtn")?.addEventListener("click", () => {
       v3ResultsPage = 1;
       withButtonAction(document.getElementById("loadV3ResultsBtn"), () => loadV3Results(true, 1));
+    });
+    document.getElementById("exportV3ResultsBtn")?.addEventListener("click", () => {
+      withButtonAction(document.getElementById("exportV3ResultsBtn"), async () => {
+        try {
+          await exportV3ResultsExcel();
+          toast("Đã xuất Excel");
+        } catch (err) {
+          toast(err.message || "Xuất Excel thất bại", "error");
+        }
+      });
     });
     document.getElementById("v3ResultsPrevBtn")?.addEventListener("click", () => {
       if (v3ResultsPage <= 1) return;
