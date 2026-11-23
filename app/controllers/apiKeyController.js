@@ -406,7 +406,7 @@ exports.statsSuccessRequests = async (req, res) => {
 
 exports.statsV3Results = async (req, res) => {
   try {
-    const { from, to, status, page = "1", pageSize = "20" } = req.query;
+    const { from, to, status, apiKeyId, page = "1", pageSize = "20" } = req.query;
     const today = getTodayInVietnam();
     const dateFrom = from || today;
     const dateTo = to || today;
@@ -428,18 +428,31 @@ exports.statsV3Results = async (req, res) => {
       where.status = statusFilter;
     }
 
+    const keyId = parseInt(apiKeyId, 10);
+    if (Number.isFinite(keyId) && keyId > 0) {
+      where.apiKeyId = keyId;
+    }
+
+    const summaryWhere = { ...where };
+
     const [result, byStatus] = await Promise.all([
       V3TaskResult.findAndCountAll({
         where,
-        attributes: ["id", "taskId", "status", "result", "createdAt"],
+        attributes: ["id", "taskId", "apiKeyId", "status", "result", "createdAt"],
+        include: [
+          {
+            model: ApiKey,
+            as: "apiKey",
+            attributes: ["id", "label", "keyValue"],
+            required: false,
+          },
+        ],
         order: [["createdAt", "DESC"]],
         limit: take,
         offset,
       }),
       V3TaskResult.findAll({
-        where: {
-          createdAt: where.createdAt,
-        },
+        where: summaryWhere,
         attributes: ["status", [fn("COUNT", col("id")), "count"]],
         group: ["status"],
         raw: true,
@@ -470,6 +483,10 @@ exports.statsV3Results = async (req, res) => {
         hasNext: currentPage < totalPages,
       },
       range: { from: dateFrom, to: dateTo },
+      filter: {
+        apiKeyId: Number.isFinite(keyId) && keyId > 0 ? keyId : null,
+        status: statusFilter || null,
+      },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

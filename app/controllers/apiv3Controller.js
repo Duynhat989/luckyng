@@ -178,10 +178,12 @@ const saveV3TaskResult = (taskId, status) => {
         logsV3[status.code] += 1;
     }
 
+    const meta = taskMeta.get(taskId) || {};
     dbQueue
         .add(() =>
             V3TaskResult.create({
                 taskId,
+                apiKeyId: meta.apiKeyId || null,
                 status: status.code,
                 result: safeResultJson(status),
             })
@@ -219,9 +221,9 @@ const setTask = (taskId, status, options = {}) => {
     }
 };
 
-const initTask = (taskId, userId) => {
+const initTask = (taskId, userId, apiKeyId = null) => {
     countTasksV3 += 1;
-    taskMeta.set(taskId, { userId });
+    taskMeta.set(taskId, { userId, apiKeyId: apiKeyId || null });
     setProcessing(taskId);
 };
 
@@ -482,7 +484,7 @@ const imageFlow = async (req, res) => {
 
     try {
         const nanoToken = req.user.token;
-        initTask(taskId, req.user.id);
+        initTask(taskId, req.user.id, req.apiKey?.id);
         if (req.enterprise) req.enterprise.taskId = taskId;
         if (req.enterprise?.bindTask) req.enterprise.bindTask(taskId);
 
@@ -579,7 +581,7 @@ const upscaleImageFlow = async (req, res) => {
 
     try {
         const nanoToken = req.user.token;
-        initTask(taskId, req.user.id);
+        initTask(taskId, req.user.id, req.apiKey?.id);
         if (req.enterprise) req.enterprise.taskId = taskId;
         if (req.enterprise?.bindTask) req.enterprise.bindTask(taskId);
 
@@ -674,7 +676,7 @@ const videoFlow = async (req, res) => {
 
     try {
         const nanoToken = req.user.token;
-        initTask(taskId, req.user.id);
+        initTask(taskId, req.user.id, req.apiKey?.id);
         if (req.enterprise) req.enterprise.taskId = taskId;
         if (req.enterprise?.bindTask) req.enterprise.bindTask(taskId);
 
@@ -786,7 +788,7 @@ const upscaleVideoFlow = async (req, res) => {
 
     try {
         const nanoToken = req.user.token;
-        initTask(taskId, req.user.id);
+        initTask(taskId, req.user.id, req.apiKey?.id);
         if (req.enterprise) req.enterprise.taskId = taskId;
         if (req.enterprise?.bindTask) req.enterprise.bindTask(taskId);
 
