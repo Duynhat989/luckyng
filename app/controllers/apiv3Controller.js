@@ -14,6 +14,8 @@ const {
 const statusTasks = new Map();
 const taskMeta = new Map();
 const savedResults = new Set();
+/** Task đang gọi nano / đang poll chờ kết quả (chỉ đếm inflight thật). */
+const inflightV3 = new Set();
 
 let countTasksV3 = 0;
 const logsV3 = {
@@ -21,6 +23,8 @@ const logsV3 = {
     failed: 0,
     error: 0,
 };
+
+const isInProgressCode = (code) => code === "processing" || code === "queued";
 
 const TASK_TTL_MS = 20 * 60 * 1000; // thời gian clear data
 const NANO_POLL_INTERVAL_MS = 5000;
@@ -44,11 +48,13 @@ const clearTimeOut = (taskId) => {
         statusTasks.delete(taskId);
         taskMeta.delete(taskId);
         savedResults.delete(taskId);
+        inflightV3.delete(taskId);
         console.log(`Task ${taskId} đã bị xoá sau ${TASK_TTL_MS / 60000} phút`);
     }, TASK_TTL_MS);
 };
 
 const setProcessing = (taskId, message = "Task is being processed") => {
+    inflightV3.add(taskId);
     statusTasks.set(taskId, { success: false, code: "processing", message });
 };
 
@@ -125,7 +131,7 @@ const normalizeTaskStatus = (status, { exception = false } = {}) => {
         };
     }
 
-    if (status.code === "processing" || status.code === "queued") {
+    if (isInProgressCode(status.code)) {
         return status;
     }
 
@@ -189,7 +195,14 @@ const setTask = (taskId, status, options = {}) => {
     const normalized = normalizeTaskStatus(status, options);
     statusTasks.set(taskId, normalized);
 
+    // queued/processing: vẫn đang chạy — không finalize, không bỏ inflight
+    if (isInProgressCode(normalized.code)) {
+        inflightV3.add(taskId);
+        return;
+    }
+
     if (TERMINAL_STATUSES.has(normalized.code)) {
+        inflightV3.delete(taskId);
         saveV3TaskResult(taskId, normalized);
 
         const { userId } = taskMeta.get(taskId) || {};
@@ -212,13 +225,7 @@ const initTask = (taskId, userId) => {
     setProcessing(taskId);
 };
 
-const countProcessingV3 = () => {
-    let n = 0;
-    for (const status of statusTasks.values()) {
-        if (status?.code === "processing" || status?.code === "queued") n += 1;
-    }
-    return n;
-};
+const countProcessingV3 = () => inflightV3.size;
 
 const resolveImageRatio = (value) => value || DEFAULT_IMAGE_RATIO;
 
@@ -292,10 +299,14 @@ const pollNanoTask = async (flow, nanoTaskId, maxAttempts, taskId = "") => {
     for (let i = 0; i < maxAttempts; i++) {
         await sleep(NANO_POLL_INTERVAL_MS);
         const result = await flow._getRequestNANO(nanoTaskId);
-        if (result.code !== "processing") {
+        // queued + processing = vẫn đang chờ nano/create-flow
+        if (!isInProgressCode(result?.code)) {
             return result;
         }
-        setProcessing(taskId, `Task is being processed [${JSON.stringify(result)}]`);
+        setProcessing(
+            taskId,
+            `Task is being processed [${result?.code || "processing"} ${i + 1}/${maxAttempts}]`
+        );
     }
     return null;
 };
@@ -912,7 +923,9 @@ const getHope = async (req, res) => {
         processing: countProcessingV3(),
         countTasks: countTasksV3,
         logs: { ...logsV3 },
+        // statusTasks còn giữ task đã xong (TTL) — không dùng làm "đang xử lý"
         activeTasks: statusTasks.size,
+        inflight: inflightV3.size,
     });
 };
 

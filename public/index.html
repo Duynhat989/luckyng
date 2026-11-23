@@ -403,6 +403,81 @@
     .usage-bar.full span { background: var(--danger); }
     .usage-text { font-size: 0.8125rem; font-weight: 500; }
 
+    .json-cell {
+      max-width: 420px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.75rem;
+      line-height: 1.35;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      border-radius: 6px;
+      padding: 6px 8px;
+      background: color-mix(in srgb, var(--border) 55%, transparent);
+      transition: background 0.15s, color 0.15s;
+    }
+    .json-cell:hover {
+      color: var(--text);
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(15, 18, 28, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .modal-backdrop[hidden] { display: none !important; }
+    .modal-card {
+      width: min(920px, 100%);
+      max-height: min(80vh, 900px);
+      background: var(--card, #fff);
+      color: var(--text);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.28);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-head h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 650;
+    }
+    .modal-head .muted { font-size: 0.8125rem; }
+    .modal-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .modal-body {
+      padding: 0;
+      overflow: auto;
+      flex: 1;
+      background: #0f1419;
+    }
+    .modal-body pre {
+      margin: 0;
+      padding: 16px 18px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      color: #e7ecf3;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+
     .filter-row {
       display: flex;
       flex-wrap: wrap;
@@ -895,7 +970,7 @@
               <div class="hope-card">
                 <div class="label">Đang xử lý</div>
                 <div class="value" id="hopeV3Processing">0</div>
-                <div class="sub">Active map: <span id="hopeV3Active">0</span></div>
+                <div class="sub">Map còn TTL: <span id="hopeV3Active">0</span></div>
               </div>
               <div class="hope-card">
                 <div class="label">Tổng task v3</div>
@@ -973,6 +1048,23 @@
         </section>
       </div>
     </main>
+  </div>
+
+
+  <div id="jsonResultModal" class="modal-backdrop" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="jsonResultModalTitle">
+      <div class="modal-head">
+        <div>
+          <h3 id="jsonResultModalTitle">Chi tiết result</h3>
+          <div class="muted" id="jsonResultModalMeta"></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost btn-sm" id="jsonResultCopyBtn">Sao chép</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="jsonResultCloseBtn">Đóng</button>
+        </div>
+      </div>
+      <div class="modal-body"><pre id="jsonResultModalPre"></pre></div>
+    </div>
   </div>
 
   <script>
@@ -1539,16 +1631,43 @@
     let v3ResultsPage = 1;
     const V3_RESULTS_PAGE_SIZE = 20;
 
-    function parseV3ResultPreview(raw) {
-      if (!raw) return { message: "—", url: "" };
-      let obj = raw;
-      if (typeof raw === "string") {
-        try { obj = JSON.parse(raw); } catch (_e) { return { message: String(raw).slice(0, 120), url: "" }; }
+    const v3ResultStore = new Map();
+    let jsonModalRawText = "";
+
+    function formatV3ResultJson(raw) {
+      if (raw == null || raw === "") return "null";
+      if (typeof raw === "object") {
+        try { return JSON.stringify(raw, null, 2); } catch (_e) { return String(raw); }
       }
-      const data = obj.data || obj.result || {};
-      const url = data.mediaUrl || data.fifeUrl || data.imageUrl || data.videoUrl || data.url || "";
-      const message = obj.message || obj.error || data.message || "—";
-      return { message: String(message).slice(0, 160), url: String(url || "") };
+      const text = String(raw);
+      try {
+        return JSON.stringify(JSON.parse(text), null, 2);
+      } catch (_e) {
+        return text;
+      }
+    }
+
+    function previewV3ResultJson(raw, maxLen = 140) {
+      const pretty = formatV3ResultJson(raw).replace(/\s+/g, " ").trim();
+      if (pretty.length <= maxLen) return pretty;
+      return pretty.slice(0, maxLen) + "…";
+    }
+
+    function openJsonResultModal(row) {
+      const modal = document.getElementById("jsonResultModal");
+      const pre = document.getElementById("jsonResultModalPre");
+      const meta = document.getElementById("jsonResultModalMeta");
+      if (!modal || !pre) return;
+      jsonModalRawText = formatV3ResultJson(row?.result);
+      pre.textContent = jsonModalRawText;
+      const time = row?.createdAt ? new Date(row.createdAt).toLocaleString("vi-VN") : "—";
+      meta.textContent = `${row?.status || "—"} · ${row?.taskId || "—"} · ${time}`;
+      modal.hidden = false;
+    }
+
+    function closeJsonResultModal() {
+      const modal = document.getElementById("jsonResultModal");
+      if (modal) modal.hidden = true;
     }
 
     function statusBadge(status) {
@@ -1609,25 +1728,24 @@
             <div class="hope-card"><div class="label">Error</div><div class="value">${formatNum(summary.error || 0)}</div></div>`;
         }
         updateV3ResultsPager(pagination);
+        v3ResultStore.clear();
         if (!rows.length) {
           wrap.innerHTML = '<div class="empty empty-animate">Chưa có kết quả v3 trong khoảng đã chọn</div>';
           return;
         }
         let html = `<table class="content-animate"><thead><tr>
-          <th>Thời gian</th><th>Status</th><th>Task ID</th><th>Message</th><th>URL</th>
+          <th>Thời gian</th><th>Status</th><th>Task ID</th><th>Result (JSON)</th>
         </tr></thead><tbody>`;
         rows.forEach((r, i) => {
+          const id = String(r.id ?? i);
+          v3ResultStore.set(id, r);
           const time = r.createdAt ? new Date(r.createdAt).toLocaleString("vi-VN") : "—";
-          const preview = parseV3ResultPreview(r.result);
-          const urlCell = preview.url
-            ? `<a href="${escapeHtml(preview.url)}" target="_blank" rel="noopener" class="key-cell" title="${escapeHtml(preview.url)}">${escapeHtml(preview.url.slice(0, 48))}${preview.url.length > 48 ? "…" : ""}</a>`
-            : "—";
+          const preview = previewV3ResultJson(r.result);
           html += `<tr class="row-animate" style="animation-delay:${Math.min(i * 30, 300)}ms">
             <td>${escapeHtml(time)}</td>
             <td>${statusBadge(r.status)}</td>
             <td class="key-cell" title="${escapeHtml(r.taskId)}">${escapeHtml(r.taskId)}</td>
-            <td>${escapeHtml(preview.message)}</td>
-            <td>${urlCell}</td>
+            <td><div class="json-cell" data-v3-result-id="${escapeHtml(id)}" title="Click để xem JSON">${escapeHtml(preview)}</div></td>
           </tr>`;
         });
         html += "</tbody></table>";
@@ -1657,6 +1775,23 @@
     document.getElementById("v3StatusFilter")?.addEventListener("change", () => {
       v3ResultsPage = 1;
       loadV3Results(true, 1);
+    });
+
+    document.getElementById("v3ResultsTableWrap")?.addEventListener("click", (e) => {
+      const cell = e.target.closest("[data-v3-result-id]");
+      if (!cell) return;
+      const row = v3ResultStore.get(cell.getAttribute("data-v3-result-id"));
+      if (row) openJsonResultModal(row);
+    });
+    document.getElementById("jsonResultCloseBtn")?.addEventListener("click", closeJsonResultModal);
+    document.getElementById("jsonResultCopyBtn")?.addEventListener("click", () => {
+      copyText(jsonModalRawText || "");
+    });
+    document.getElementById("jsonResultModal")?.addEventListener("click", (e) => {
+      if (e.target.id === "jsonResultModal") closeJsonResultModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeJsonResultModal();
     });
 
     function copyText(text) {
