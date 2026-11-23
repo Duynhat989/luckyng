@@ -738,7 +738,7 @@
       <button type="button" class="tab active" data-tab="keys">API Keys</button>
       <button type="button" class="tab" data-tab="webhooks">Webhooks</button>
       <button type="button" class="tab" data-tab="stats">Thống kê</button>
-      <button type="button" class="tab" data-tab="history">Lịch sử</button>
+      <button type="button" class="tab" data-tab="history">Kết quả v3</button>
     </nav>
 
     <main class="main-full">
@@ -821,7 +821,7 @@
       </div>
 
       <div id="panelStats" class="panel">
-        <section class="section" id="hopeSection">
+        <section class="section" id="hopeSection" hidden>
           <div class="section-head">
             <div class="hope-meta">
               <div>
@@ -931,33 +931,42 @@
       </div>
 
       <div id="panelHistory" class="panel">
-        <section class="section">
+        <section class="section" id="v3ResultsSection">
           <div class="section-head">
-            <h2>Lịch sử request thành công</h2>
-            <p>Log captcha local (create-flow OK + attempt). Khác với đếm hạn mức/ngày ở tab Keys/Thống kê (đếm từ /api/v3).</p>
+            <h2>Kết quả task API v3</h2>
+            <p>Bảng <code>v3TaskResults</code> — success / failed / error. Có phân trang.</p>
           </div>
           <div class="section-body">
             <div class="filter-row">
               <div class="field">
-                <label for="historyFrom">Từ ngày</label>
-                <input id="historyFrom" type="date">
+                <label for="v3From">Từ ngày</label>
+                <input id="v3From" type="date">
               </div>
               <div class="field">
-                <label for="historyTo">Đến ngày</label>
-                <input id="historyTo" type="date">
+                <label for="v3To">Đến ngày</label>
+                <input id="v3To" type="date">
+              </div>
+              <div class="field">
+                <label for="v3StatusFilter">Trạng thái</label>
+                <select id="v3StatusFilter">
+                  <option value="">Tất cả</option>
+                  <option value="success">success</option>
+                  <option value="failed">failed</option>
+                  <option value="error">error</option>
+                </select>
               </div>
               <div class="field field-inline">
                 <label>&nbsp;</label>
-                <button type="button" class="btn btn-primary" id="loadHistoryBtn">Tải lịch sử</button>
+                <button type="button" class="btn btn-primary" id="loadV3ResultsBtn">Tải kết quả</button>
               </div>
             </div>
-            <div class="stats-summary" id="successReqSummary" style="margin:16px 0"></div>
-            <div id="successReqTableWrap" class="table-wrap"></div>
-            <div class="filter-row" id="historyPager" style="margin-top:16px;align-items:center;justify-content:space-between">
-              <span class="muted" id="historyPageInfo" style="font-size:0.875rem">—</span>
+            <div class="stats-summary" id="v3ResultsSummary" style="margin:16px 0"></div>
+            <div id="v3ResultsTableWrap" class="table-wrap"></div>
+            <div class="filter-row" id="v3ResultsPager" style="margin-top:16px;align-items:center;justify-content:space-between">
+              <span class="muted" id="v3ResultsPageInfo" style="font-size:0.875rem">—</span>
               <div style="display:flex;gap:8px">
-                <button type="button" class="btn btn-ghost btn-sm" id="historyPrevBtn" disabled>Trước</button>
-                <button type="button" class="btn btn-ghost btn-sm" id="historyNextBtn" disabled>Sau</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="v3ResultsPrevBtn" disabled>Trước</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="v3ResultsNextBtn" disabled>Sau</button>
               </div>
             </div>
           </div>
@@ -1055,12 +1064,8 @@
 
     function startHopePolling() {
       stopHopePolling();
-      loadHopeStats();
       loadHopeV3Stats();
-      hopePollTimer = setInterval(() => {
-        loadHopeStats();
-        loadHopeV3Stats();
-      }, 5000);
+      hopePollTimer = setInterval(loadHopeV3Stats, 5000);
     }
 
     function showLogin() {
@@ -1078,8 +1083,10 @@
       document.getElementById("adminName").textContent = user.name + " · " + user.email;
       document.getElementById("statFrom").value = todayLocal();
       document.getElementById("statTo").value = todayLocal();
-      document.getElementById("historyFrom").value = todayLocal();
-      document.getElementById("historyTo").value = todayLocal();
+      const v3From = document.getElementById("v3From");
+      const v3To = document.getElementById("v3To");
+      if (v3From) v3From.value = todayLocal();
+      if (v3To) v3To.value = todayLocal();
       playViewIn("appView", "view-in");
       loadKeys();
     }
@@ -1203,8 +1210,8 @@
           stopHopePolling();
         }
         if (btn.dataset.tab === "history") {
-          historyPage = 1;
-          loadSuccessRequests(true, 1);
+          v3ResultsPage = 1;
+          loadV3Results(true, 1);
         }
         if (btn.dataset.tab === "webhooks") loadWebhooks();
         if (btn.dataset.tab === "keys") loadKeys();
@@ -1485,83 +1492,6 @@
       });
     });
 
-    let historyPage = 1;
-    const HISTORY_PAGE_SIZE = 20;
-
-    function updateHistoryPager(pagination) {
-      const info = document.getElementById("historyPageInfo");
-      const prevBtn = document.getElementById("historyPrevBtn");
-      const nextBtn = document.getElementById("historyNextBtn");
-      if (!pagination) {
-        if (info) info.textContent = "—";
-        if (prevBtn) prevBtn.disabled = true;
-        if (nextBtn) nextBtn.disabled = true;
-        return;
-      }
-      const page = pagination.page || 1;
-      const totalPages = pagination.totalPages || 1;
-      const total = pagination.total || 0;
-      if (info) {
-        info.textContent = total
-          ? `Trang ${formatNum(page)} / ${formatNum(totalPages)} · ${formatNum(total)} bản ghi`
-          : "Không có dữ liệu";
-      }
-      if (prevBtn) prevBtn.disabled = !pagination.hasPrev;
-      if (nextBtn) nextBtn.disabled = !pagination.hasNext;
-    }
-
-    async function loadSuccessRequests(showLoader = true, page = historyPage) {
-      const wrap = document.getElementById("successReqTableWrap");
-      const summaryEl = document.getElementById("successReqSummary");
-      const from = document.getElementById("historyFrom").value;
-      const to = document.getElementById("historyTo").value;
-      if (!wrap) return;
-      historyPage = Math.max(1, page);
-      if (showLoader) wrap.innerHTML = skeletonHtml();
-      try {
-        const q = new URLSearchParams({
-          from,
-          to,
-          page: String(historyPage),
-          pageSize: String(HISTORY_PAGE_SIZE),
-        });
-        const res = await api("/api/admin/stats/success-requests?" + q);
-        const rows = res.data || [];
-        const summary = res.summary || {};
-        const pagination = res.pagination || {};
-        historyPage = pagination.page || historyPage;
-        if (summaryEl) {
-          summaryEl.innerHTML = `
-            <div class="hope-card highlight">
-              <div class="label">Request OK</div>
-              <div class="value">${formatNum(summary.total || 0)}</div>
-              <div class="sub">Avg attempt: ${summary.avgAttempt || 0} · Max: ${formatNum(summary.maxAttempt || 0)}</div>
-            </div>`;
-        }
-        updateHistoryPager(pagination);
-        if (!rows.length) {
-          wrap.innerHTML = '<div class="empty empty-animate">Chưa có request thành công trong khoảng ngày này</div>';
-          return;
-        }
-        let html = `<table class="content-animate"><thead><tr>
-          <th>Thời gian</th><th>Task ID</th><th>Loại</th><th>Attempt pass</th>
-        </tr></thead><tbody>`;
-        rows.forEach((r, i) => {
-          const time = r.createdAt ? new Date(r.createdAt).toLocaleString("vi-VN") : "—";
-          html += `<tr class="row-animate" style="animation-delay:${Math.min(i * 30, 300)}ms">
-            <td>${escapeHtml(time)}</td>
-            <td class="key-cell" title="${escapeHtml(r.taskId)}">${escapeHtml(r.taskId)}</td>
-            <td>${escapeHtml(r.requestType || "—")}</td>
-            <td><strong>${formatNum(r.attempt)}</strong></td>
-          </tr>`;
-        });
-        html += "</tbody></table>";
-        wrap.innerHTML = html;
-      } catch (err) {
-        wrap.innerHTML = '<div class="empty empty-animate">' + escapeHtml(err.message) + "</div>";
-        updateHistoryPager(null);
-      }
-    }
 
     async function loadStats(showLoader = true) {
       const wrap = document.getElementById("statsTableWrap");
@@ -1606,22 +1536,127 @@
       }
     }
 
+    let v3ResultsPage = 1;
+    const V3_RESULTS_PAGE_SIZE = 20;
+
+    function parseV3ResultPreview(raw) {
+      if (!raw) return { message: "—", url: "" };
+      let obj = raw;
+      if (typeof raw === "string") {
+        try { obj = JSON.parse(raw); } catch (_e) { return { message: String(raw).slice(0, 120), url: "" }; }
+      }
+      const data = obj.data || obj.result || {};
+      const url = data.mediaUrl || data.fifeUrl || data.imageUrl || data.videoUrl || data.url || "";
+      const message = obj.message || obj.error || data.message || "—";
+      return { message: String(message).slice(0, 160), url: String(url || "") };
+    }
+
+    function statusBadge(status) {
+      const s = String(status || "");
+      const color = s === "success" ? "var(--ok, #16a34a)" : s === "failed" ? "var(--warn, #d97706)" : "var(--danger, #dc2626)";
+      return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:0.75rem;font-weight:600;background:${color}22;color:${color}">${escapeHtml(s)}</span>`;
+    }
+
+    function updateV3ResultsPager(pagination) {
+      const info = document.getElementById("v3ResultsPageInfo");
+      const prevBtn = document.getElementById("v3ResultsPrevBtn");
+      const nextBtn = document.getElementById("v3ResultsNextBtn");
+      if (!pagination) {
+        if (info) info.textContent = "—";
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+        return;
+      }
+      const page = pagination.page || 1;
+      const totalPages = pagination.totalPages || 1;
+      const total = pagination.total || 0;
+      if (info) {
+        info.textContent = total
+          ? `Trang ${formatNum(page)} / ${formatNum(totalPages)} · ${formatNum(total)} bản ghi`
+          : "Không có dữ liệu";
+      }
+      if (prevBtn) prevBtn.disabled = !pagination.hasPrev;
+      if (nextBtn) nextBtn.disabled = !pagination.hasNext;
+    }
+
+    async function loadV3Results(showLoader = true, page = v3ResultsPage) {
+      const wrap = document.getElementById("v3ResultsTableWrap");
+      const summaryEl = document.getElementById("v3ResultsSummary");
+      if (!wrap) return;
+      const from = document.getElementById("v3From")?.value || todayLocal();
+      const to = document.getElementById("v3To")?.value || todayLocal();
+      const status = document.getElementById("v3StatusFilter")?.value || "";
+      v3ResultsPage = Math.max(1, page);
+      if (showLoader) wrap.innerHTML = skeletonHtml();
+      try {
+        const q = new URLSearchParams({
+          from,
+          to,
+          page: String(v3ResultsPage),
+          pageSize: String(V3_RESULTS_PAGE_SIZE),
+        });
+        if (status) q.set("status", status);
+        const res = await api("/api/admin/stats/v3-results?" + q);
+        const rows = res.data || [];
+        const summary = res.summary || {};
+        const pagination = res.pagination || {};
+        v3ResultsPage = pagination.page || v3ResultsPage;
+        if (summaryEl) {
+          summaryEl.innerHTML = `
+            <div class="hope-card highlight"><div class="label">Tổng</div><div class="value">${formatNum(summary.total || 0)}</div></div>
+            <div class="hope-card"><div class="label">Success</div><div class="value">${formatNum(summary.success || 0)}</div></div>
+            <div class="hope-card"><div class="label">Failed</div><div class="value">${formatNum(summary.failed || 0)}</div></div>
+            <div class="hope-card"><div class="label">Error</div><div class="value">${formatNum(summary.error || 0)}</div></div>`;
+        }
+        updateV3ResultsPager(pagination);
+        if (!rows.length) {
+          wrap.innerHTML = '<div class="empty empty-animate">Chưa có kết quả v3 trong khoảng đã chọn</div>';
+          return;
+        }
+        let html = `<table class="content-animate"><thead><tr>
+          <th>Thời gian</th><th>Status</th><th>Task ID</th><th>Message</th><th>URL</th>
+        </tr></thead><tbody>`;
+        rows.forEach((r, i) => {
+          const time = r.createdAt ? new Date(r.createdAt).toLocaleString("vi-VN") : "—";
+          const preview = parseV3ResultPreview(r.result);
+          const urlCell = preview.url
+            ? `<a href="${escapeHtml(preview.url)}" target="_blank" rel="noopener" class="key-cell" title="${escapeHtml(preview.url)}">${escapeHtml(preview.url.slice(0, 48))}${preview.url.length > 48 ? "…" : ""}</a>`
+            : "—";
+          html += `<tr class="row-animate" style="animation-delay:${Math.min(i * 30, 300)}ms">
+            <td>${escapeHtml(time)}</td>
+            <td>${statusBadge(r.status)}</td>
+            <td class="key-cell" title="${escapeHtml(r.taskId)}">${escapeHtml(r.taskId)}</td>
+            <td>${escapeHtml(preview.message)}</td>
+            <td>${urlCell}</td>
+          </tr>`;
+        });
+        html += "</tbody></table>";
+        wrap.innerHTML = html;
+      } catch (err) {
+        wrap.innerHTML = '<div class="empty empty-animate">' + escapeHtml(err.message) + "</div>";
+        updateV3ResultsPager(null);
+      }
+    }
+
     document.getElementById("loadStatsBtn").addEventListener("click", () => {
       withButtonAction(document.getElementById("loadStatsBtn"), () => loadStats(true));
     });
 
-    document.getElementById("loadHistoryBtn").addEventListener("click", () => {
-      historyPage = 1;
-      withButtonAction(document.getElementById("loadHistoryBtn"), () => loadSuccessRequests(true, 1));
-    });
 
-    document.getElementById("historyPrevBtn").addEventListener("click", () => {
-      if (historyPage <= 1) return;
-      loadSuccessRequests(true, historyPage - 1);
+    document.getElementById("loadV3ResultsBtn")?.addEventListener("click", () => {
+      v3ResultsPage = 1;
+      withButtonAction(document.getElementById("loadV3ResultsBtn"), () => loadV3Results(true, 1));
     });
-
-    document.getElementById("historyNextBtn").addEventListener("click", () => {
-      loadSuccessRequests(true, historyPage + 1);
+    document.getElementById("v3ResultsPrevBtn")?.addEventListener("click", () => {
+      if (v3ResultsPage <= 1) return;
+      loadV3Results(true, v3ResultsPage - 1);
+    });
+    document.getElementById("v3ResultsNextBtn")?.addEventListener("click", () => {
+      loadV3Results(true, v3ResultsPage + 1);
+    });
+    document.getElementById("v3StatusFilter")?.addEventListener("change", () => {
+      v3ResultsPage = 1;
+      loadV3Results(true, 1);
     });
 
     function copyText(text) {

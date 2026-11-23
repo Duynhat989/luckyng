@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const { Op, fn, col } = require("sequelize");
-const { ApiKey, ApiKeyDailyUsage, User, RequestData } = require("../models");
+const { ApiKey, ApiKeyDailyUsage, User, RequestData, V3TaskResult } = require("../models");
 const { getTodayInVietnam } = require("../utils/date");
 const { dbQueue } = require("../utils/dbQueue");
 const {
@@ -389,6 +389,78 @@ exports.statsSuccessRequests = async (req, res) => {
         avgAttempt: s.avgAttempt ? Number(Number(s.avgAttempt).toFixed(2)) : 0,
         maxAttempt: parseInt(s.maxAttempt, 10) || 0,
       },
+      pagination: {
+        page: currentPage,
+        pageSize: take,
+        total,
+        totalPages,
+        hasPrev: currentPage > 1,
+        hasNext: currentPage < totalPages,
+      },
+      range: { from: dateFrom, to: dateTo },
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.statsV3Results = async (req, res) => {
+  try {
+    const { from, to, status, page = "1", pageSize = "20" } = req.query;
+    const today = getTodayInVietnam();
+    const dateFrom = from || today;
+    const dateTo = to || today;
+    const take = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 20));
+    const currentPage = Math.max(1, parseInt(page, 10) || 1);
+    const offset = (currentPage - 1) * take;
+
+    const where = {
+      createdAt: {
+        [Op.between]: [
+          new Date(`${dateFrom}T00:00:00+07:00`),
+          new Date(`${dateTo}T23:59:59.999+07:00`),
+        ],
+      },
+    };
+
+    const statusFilter = String(status || "").trim().toLowerCase();
+    if (["success", "failed", "error"].includes(statusFilter)) {
+      where.status = statusFilter;
+    }
+
+    const [result, byStatus] = await Promise.all([
+      V3TaskResult.findAndCountAll({
+        where,
+        attributes: ["id", "taskId", "status", "result", "createdAt"],
+        order: [["createdAt", "DESC"]],
+        limit: take,
+        offset,
+      }),
+      V3TaskResult.findAll({
+        where: {
+          createdAt: where.createdAt,
+        },
+        attributes: ["status", [fn("COUNT", col("id")), "count"]],
+        group: ["status"],
+        raw: true,
+      }),
+    ]);
+
+    const summary = { success: 0, failed: 0, error: 0, total: 0 };
+    for (const row of byStatus) {
+      const key = row.status;
+      const count = parseInt(row.count, 10) || 0;
+      if (summary[key] !== undefined) summary[key] = count;
+      summary.total += count;
+    }
+
+    const total = result.count || 0;
+    const totalPages = Math.max(1, Math.ceil(total / take));
+
+    return res.status(200).json({
+      success: true,
+      data: result.rows,
+      summary,
       pagination: {
         page: currentPage,
         pageSize: take,

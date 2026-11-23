@@ -14,6 +14,7 @@ router.delete("/api-keys/:id", apiKeyController.remove);
 router.get("/stats/by-user", apiKeyController.statsByUserDay);
 router.get("/stats/by-key", apiKeyController.statsByKeyDay);
 router.get("/stats/success-requests", apiKeyController.statsSuccessRequests);
+router.get("/stats/v3-results", apiKeyController.statsV3Results);
 
 router.post("/webhooks", webhookController.create);
 router.get("/webhooks", webhookController.list);
