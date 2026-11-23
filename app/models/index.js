@@ -29,34 +29,15 @@ ApiKey.hasMany(V3TaskResult, { foreignKey: "apiKeyId", as: "v3Results" });
 V3TaskResult.belongsTo(ApiKey, { foreignKey: "apiKeyId", as: "apiKey" });
 
 const { ensureDefaultAdmin } = require("../bootstrap/ensureAdmin");
-
-async function ensureV3TaskResultApiKeyColumn() {
-  try {
-    const [cols] = await sequelize.query(`SHOW COLUMNS FROM v3TaskResults LIKE 'apiKeyId'`);
-    if (!cols || cols.length === 0) {
-      await sequelize.query(
-        `ALTER TABLE v3TaskResults ADD COLUMN apiKeyId INT NULL AFTER taskId`
-      );
-      await sequelize.query(
-        `ALTER TABLE v3TaskResults ADD INDEX v3TaskResults_apiKeyId_createdAt (apiKeyId, createdAt)`
-      );
-      console.log("[bootstrap] Added v3TaskResults.apiKeyId");
-    }
-  } catch (err) {
-    // bảng chưa tồn tại — sync sẽ tạo
-    if (!/doesn't exist|Unknown table/i.test(err.message || "")) {
-      console.error("[bootstrap] ensure apiKeyId:", err.message);
-    }
-  }
-}
+const { ensureV3TaskResultSchema } = require("../bootstrap/ensureV3TaskResultSchema");
 
 sequelize.sync({ force: false }).then(async () => {
   console.log('Database đã được đồng bộ!');
   try {
-    await ensureV3TaskResultApiKeyColumn();
+    await ensureV3TaskResultSchema();
     await ensureDefaultAdmin();
   } catch (err) {
-    console.error("[bootstrap] Lỗi tạo admin mặc định:", err.message);
+    console.error("[bootstrap] Lỗi khởi tạo schema/admin:", err.message);
   }
 });
 module.exports = {

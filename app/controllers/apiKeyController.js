@@ -406,6 +406,9 @@ exports.statsSuccessRequests = async (req, res) => {
 
 exports.statsV3Results = async (req, res) => {
   try {
+    const { ensureV3TaskResultSchema } = require("../bootstrap/ensureV3TaskResultSchema");
+    await ensureV3TaskResultSchema();
+
     const { from, to, status, apiKeyId, page = "1", pageSize = "20" } = req.query;
     const today = getTodayInVietnam();
     const dateFrom = from || today;
@@ -439,14 +442,6 @@ exports.statsV3Results = async (req, res) => {
       V3TaskResult.findAndCountAll({
         where,
         attributes: ["id", "taskId", "apiKeyId", "status", "result", "createdAt"],
-        include: [
-          {
-            model: ApiKey,
-            as: "apiKey",
-            attributes: ["id", "label", "keyValue"],
-            required: false,
-          },
-        ],
         order: [["createdAt", "DESC"]],
         limit: take,
         offset,
@@ -458,6 +453,27 @@ exports.statsV3Results = async (req, res) => {
         raw: true,
       }),
     ]);
+
+    const keyIds = [
+      ...new Set(
+        result.rows
+          .map((r) => r.apiKeyId)
+          .filter((id) => id != null && Number.isFinite(Number(id)))
+      ),
+    ];
+    const keyRows = keyIds.length
+      ? await ApiKey.findAll({
+          where: { id: { [Op.in]: keyIds } },
+          attributes: ["id", "label", "keyValue"],
+        })
+      : [];
+    const keyMap = Object.fromEntries(keyRows.map((k) => [k.id, k]));
+
+    const data = result.rows.map((row) => {
+      const plain = row.toJSON ? row.toJSON() : row;
+      plain.apiKey = plain.apiKeyId != null ? keyMap[plain.apiKeyId] || null : null;
+      return plain;
+    });
 
     const summary = { success: 0, failed: 0, error: 0, total: 0 };
     for (const row of byStatus) {
@@ -472,7 +488,7 @@ exports.statsV3Results = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: result.rows,
+      data,
       summary,
       pagination: {
         page: currentPage,

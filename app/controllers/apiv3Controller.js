@@ -180,14 +180,16 @@ const saveV3TaskResult = (taskId, status) => {
 
     const meta = taskMeta.get(taskId) || {};
     dbQueue
-        .add(() =>
-            V3TaskResult.create({
+        .add(async () => {
+            const { ensureV3TaskResultSchema } = require("../bootstrap/ensureV3TaskResultSchema");
+            await ensureV3TaskResultSchema();
+            return V3TaskResult.create({
                 taskId,
                 apiKeyId: meta.apiKeyId || null,
                 status: status.code,
                 result: safeResultJson(status),
-            })
-        )
+            });
+        })
         .catch((err) => {
             console.error("[v3TaskResult] save error:", err.message);
         });
