@@ -7,6 +7,7 @@ const { ApiKey } = require("./apiKeyModel");
 const { ApiKeyDailyUsage } = require("./apiKeyUsageModel");
 const { Webhook } = require("./webhookModel");
 const { RequestData } = require("./requestDataModel");
+const { V3TaskResult } = require("./v3TaskResultModel");
 
 User.hasOne(packs, { foreignKey: "userId", as: "pack" });
 packs.belongsTo(User, { foreignKey: "userId", as: "user" });
@@ -44,4 +45,5 @@ module.exports = {
   ApiKeyDailyUsage,
   Webhook,
   RequestData,
+  V3TaskResult,
 };

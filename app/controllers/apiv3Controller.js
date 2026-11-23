@@ -2,6 +2,8 @@ const { v4: uuidv4 } = require("uuid");
 const FlowAPI = require("../modules/flow_v3.module");
 const veo = require("./veoController");
 const { sendCallback } = require("../modules/web_hook.module");
+const { V3TaskResult } = require("../models");
+const { dbQueue } = require("../utils/dbQueue");
 const {
     sleep,
     getModelsV3,
@@ -11,6 +13,14 @@ const {
 
 const statusTasks = new Map();
 const taskMeta = new Map();
+const savedResults = new Set();
+
+let countTasksV3 = 0;
+const logsV3 = {
+    success: 0,
+    failed: 0,
+    error: 0,
+};
 
 const TASK_TTL_MS = 20 * 60 * 1000; // thời gian clear data
 const NANO_POLL_INTERVAL_MS = 5000;
@@ -20,6 +30,8 @@ const VIDEO_RENDER_POLL_MAX = 150;
 
 const DEFAULT_IMAGE_RATIO = "IMAGE_ASPECT_RATIO_LANDSCAPE";
 const DEFAULT_VIDEO_RATIO = "VIDEO_ASPECT_RATIO_LANDSCAPE";
+
+const TERMINAL_STATUSES = new Set(["success", "failed", "error"]);
 
 const resolveTier = (tier) => (tier === "pro" ? "pro" : "ultra");
 
@@ -31,6 +43,7 @@ const clearTimeOut = (taskId) => {
     setTimeout(() => {
         statusTasks.delete(taskId);
         taskMeta.delete(taskId);
+        savedResults.delete(taskId);
         console.log(`Task ${taskId} đã bị xoá sau ${TASK_TTL_MS / 60000} phút`);
     }, TASK_TTL_MS);
 };
@@ -39,7 +52,70 @@ const setProcessing = (taskId, message = "Task is being processed") => {
     statusTasks.set(taskId, { success: false, code: "processing", message });
 };
 
-const normalizeTaskStatus = (status) => {
+const safeResultJson = (value) => {
+    try {
+        return JSON.stringify(value, (_key, v) => {
+            if (v instanceof Error) {
+                return { message: v.message, name: v.name, stack: v.stack };
+            }
+            return v;
+        });
+    } catch (_err) {
+        return JSON.stringify({ message: String(value) });
+    }
+};
+
+const isHttpUrl = (value) =>
+    typeof value === "string" && /^https?:\/\//i.test(value.trim());
+
+/** Lấy url ảnh/video từ payload task (fifeUrl / mediaUrl / …) */
+const extractMediaUrl = (status) => {
+    if (!status || typeof status !== "object") return "";
+
+    const bags = [status, status.data, status.result, status.data?.data].filter(
+        (x) => x && typeof x === "object"
+    );
+
+    const keys = [
+        "mediaUrl",
+        "fifeUrl",
+        "imageUrl",
+        "videoUrl",
+        "url",
+        "linkVideo",
+    ];
+
+    for (const bag of bags) {
+        for (const key of keys) {
+            if (isHttpUrl(bag[key])) return bag[key].trim();
+        }
+
+        const fife = bag?.image?.generatedImage?.fifeUrl;
+        if (isHttpUrl(fife)) return fife.trim();
+
+        const medias = bag.media || bag.medias;
+        if (Array.isArray(medias)) {
+            for (const m of medias) {
+                const nested =
+                    m?.image?.generatedImage?.fifeUrl ||
+                    m?.mediaUrl ||
+                    m?.fifeUrl ||
+                    m?.videoUrl ||
+                    m?.url;
+                if (isHttpUrl(nested)) return nested.trim();
+            }
+        }
+    }
+
+    return "";
+};
+
+/**
+ * success = có url ảnh/video
+ * failed  = không có url (gen xong nhưng thiếu link)
+ * error   = exception / lỗi hệ thống
+ */
+const normalizeTaskStatus = (status, { exception = false } = {}) => {
     if (!status || typeof status !== "object") {
         return {
             success: false,
@@ -49,31 +125,73 @@ const normalizeTaskStatus = (status) => {
         };
     }
 
-    if (status.code === "processing") {
+    if (status.code === "processing" || status.code === "queued") {
         return status;
     }
 
-    if (status.code === "success" || status.code === "error") {
-        return status;
+    if (exception) {
+        return {
+            ...status,
+            success: false,
+            code: "error",
+            message: status.message || status.error || "Task error",
+        };
     }
 
-    if (status.success === true || status.message === "successfully") {
-        return { ...status, code: status.code || "success" };
+    const mediaUrl = extractMediaUrl(status);
+    if (mediaUrl) {
+        const data =
+            status.data && typeof status.data === "object"
+                ? { ...status.data }
+                : {};
+        if (!data.mediaUrl && !data.fifeUrl) {
+            data.mediaUrl = mediaUrl;
+        }
+        return {
+            ...status,
+            success: true,
+            code: "success",
+            message: status.message || "Gen success",
+            data,
+        };
     }
 
     return {
         ...status,
         success: false,
-        code: "error",
-        message: status.message || status.error || "Task failed",
+        code: "failed",
+        message: status.message || status.error || "No media url",
     };
 };
 
-const setTask = (taskId, status) => {
-    const normalized = normalizeTaskStatus(status);
+const saveV3TaskResult = (taskId, status) => {
+    if (savedResults.has(taskId)) return;
+    savedResults.add(taskId);
+
+    if (TERMINAL_STATUSES.has(status.code)) {
+        logsV3[status.code] += 1;
+    }
+
+    dbQueue
+        .add(() =>
+            V3TaskResult.create({
+                taskId,
+                status: status.code,
+                result: safeResultJson(status),
+            })
+        )
+        .catch((err) => {
+            console.error("[v3TaskResult] save error:", err.message);
+        });
+};
+
+const setTask = (taskId, status, options = {}) => {
+    const normalized = normalizeTaskStatus(status, options);
     statusTasks.set(taskId, normalized);
 
-    if (normalized.code === "success" || normalized.code === "error") {
+    if (TERMINAL_STATUSES.has(normalized.code)) {
+        saveV3TaskResult(taskId, normalized);
+
         const { userId } = taskMeta.get(taskId) || {};
         if (userId) {
             sendCallback(taskId, normalized).catch((err) =>
@@ -89,8 +207,17 @@ const setTask = (taskId, status) => {
 };
 
 const initTask = (taskId, userId) => {
+    countTasksV3 += 1;
     taskMeta.set(taskId, { userId });
     setProcessing(taskId);
+};
+
+const countProcessingV3 = () => {
+    let n = 0;
+    for (const status of statusTasks.values()) {
+        if (status?.code === "processing" || status?.code === "queued") n += 1;
+    }
+    return n;
 };
 
 const resolveImageRatio = (value) => value || DEFAULT_IMAGE_RATIO;
@@ -294,12 +421,16 @@ const runBackground = (taskId, fn, sourceReq) => {
             await fn();
         } catch (err) {
             console.error("Background task error:", err);
-            setTask(taskId, {
-                success: false,
-                code: "error",
-                message: err.message || "Background task error",
-                data: err,
-            });
+            setTask(
+                taskId,
+                {
+                    success: false,
+                    code: "error",
+                    message: err.message || "Background task error",
+                    data: { message: err.message, name: err.name },
+                },
+                { exception: true }
+            );
         }
     })();
 };
@@ -774,6 +905,16 @@ const getMediaLinkDownload = async (req, res) => {
     }
 };
 
+/** Realtime v3 — không đụng /api/flow/request-hope */
+const getHope = async (req, res) => {
+    return res.status(200).json({
+        success: true,
+        processing: countProcessingV3(),
+        countTasks: countTasksV3,
+        logs: { ...logsV3 },
+        activeTasks: statusTasks.size,
+    });
+};
 
 module.exports = {
     videoFlow,
@@ -781,5 +922,6 @@ module.exports = {
     imageFlow,
     upscaleImageFlow,
     getTask,
-    getMediaLinkDownload
+    getMediaLinkDownload,
+    getHope,
 };

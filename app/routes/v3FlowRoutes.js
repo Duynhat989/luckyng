@@ -12,5 +12,6 @@ router.post("/images/upscale", authV3Count, rateLimiter, apiv3Controller.upscale
 router.post("/videos/create", authV3Count, rateLimiter, apiv3Controller.videoFlow);
 router.post("/videos/upscale", authV3Count, rateLimiter, apiv3Controller.upscaleVideoFlow);
 router.get("/task", apiv3Controller.getTask);
+router.get("/request-hope", apiv3Controller.getHope);
 
 module.exports = router;

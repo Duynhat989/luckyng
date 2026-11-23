@@ -863,6 +863,48 @@
           </div>
         </section>
 
+        <section class="section" id="hopeV3Section">
+          <div class="section-head">
+            <div class="hope-meta">
+              <div>
+                <h2>Trạng thái API v3 (realtime)</h2>
+                <p style="margin:6px 0 0;font-size:0.875rem;opacity:0.75"><code>GET /api/v3/request-hope</code> · success / failed / error</p>
+              </div>
+              <span class="live-dot" id="hopeV3UpdatedAt">Mở tab này để cập nhật</span>
+            </div>
+          </div>
+          <div class="section-body">
+            <div class="hope-grid" id="hopeV3Grid">
+              <div class="hope-card highlight">
+                <div class="label">Tỷ lệ thành công</div>
+                <div class="value" id="hopeV3SuccessRate">—</div>
+                <div class="sub" id="hopeV3SuccessSub">Chưa có dữ liệu</div>
+              </div>
+              <div class="hope-card">
+                <div class="label">Thành công</div>
+                <div class="value" id="hopeV3SuccessCount">0</div>
+              </div>
+              <div class="hope-card">
+                <div class="label">Failed</div>
+                <div class="value" id="hopeV3FailedCount">0</div>
+              </div>
+              <div class="hope-card">
+                <div class="label">Error</div>
+                <div class="value" id="hopeV3ErrorCount">0</div>
+              </div>
+              <div class="hope-card">
+                <div class="label">Đang xử lý</div>
+                <div class="value" id="hopeV3Processing">0</div>
+                <div class="sub">Active map: <span id="hopeV3Active">0</span></div>
+              </div>
+              <div class="hope-card">
+                <div class="label">Tổng task v3</div>
+                <div class="value" id="hopeV3CountTasks">0</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="section">
           <div class="section-head">
             <h2>Thống kê theo API key / ngày</h2>
@@ -1014,7 +1056,11 @@
     function startHopePolling() {
       stopHopePolling();
       loadHopeStats();
-      hopePollTimer = setInterval(loadHopeStats, 5000);
+      loadHopeV3Stats();
+      hopePollTimer = setInterval(() => {
+        loadHopeStats();
+        loadHopeV3Stats();
+      }, 5000);
     }
 
     function showLogin() {
@@ -1068,6 +1114,43 @@
         updatedEl.textContent = "Cập nhật " + now.toLocaleTimeString("vi-VN");
       } catch (err) {
         updatedEl.textContent = "Không tải được dữ liệu";
+        if (err.status === 401) showLogin();
+      }
+    }
+
+
+    async function loadHopeV3Stats() {
+      const updatedEl = document.getElementById("hopeV3UpdatedAt");
+      const rateEl = document.getElementById("hopeV3SuccessRate");
+      if (!updatedEl || !rateEl) return;
+      try {
+        const data = await api("/api/v3/request-hope");
+        const success = data.logs?.success ?? 0;
+        const failed = data.logs?.failed ?? 0;
+        const error = data.logs?.error ?? 0;
+        const total = success + failed + error;
+        let rateText = "—";
+        let rateClass = "";
+        if (total > 0) {
+          const pct = (success / total) * 100;
+          rateText = pct.toFixed(1) + "%";
+          rateClass = pct >= 80 ? "success-rate" : pct >= 50 ? "warn-rate" : "bad-rate";
+        }
+        rateEl.textContent = rateText;
+        rateEl.className = "value " + rateClass;
+        document.getElementById("hopeV3SuccessSub").textContent =
+          total > 0
+            ? `${formatNum(success)} / ${formatNum(total)} hoàn tất (failed ${formatNum(failed)}, error ${formatNum(error)})`
+            : "Chưa có task v3 hoàn tất";
+        document.getElementById("hopeV3SuccessCount").textContent = formatNum(success);
+        document.getElementById("hopeV3FailedCount").textContent = formatNum(failed);
+        document.getElementById("hopeV3ErrorCount").textContent = formatNum(error);
+        document.getElementById("hopeV3Processing").textContent = formatNum(data.processing ?? 0);
+        document.getElementById("hopeV3Active").textContent = formatNum(data.activeTasks ?? 0);
+        document.getElementById("hopeV3CountTasks").textContent = formatNum(data.countTasks ?? 0);
+        updatedEl.textContent = "Cập nhật " + new Date().toLocaleTimeString("vi-VN");
+      } catch (err) {
+        updatedEl.textContent = "Không tải được dữ liệu v3";
         if (err.status === 401) showLogin();
       }
     }
