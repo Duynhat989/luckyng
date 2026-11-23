@@ -273,17 +273,21 @@ exports.statsByUserDay = async (req, res) => {
 
 exports.statsByKeyDay = async (req, res) => {
   try {
+    const { ensureV3TaskResultSchema } = require("../bootstrap/ensureV3TaskResultSchema");
+    await ensureV3TaskResultSchema();
+
     const { from, to, apiKeyId } = req.query;
     const today = getTodayInVietnam();
     const dateFrom = from || today;
     const dateTo = to || today;
+    const filterKeyId = apiKeyId ? parseInt(apiKeyId, 10) : null;
 
-    const adminKeyIds = (
-      await ApiKey.findAll({
-        where: { userId: req.user.id },
-        attributes: ["id"],
-      })
-    ).map((k) => k.id);
+    const adminKeys = await ApiKey.findAll({
+      where: { userId: req.user.id },
+      attributes: ["id", "label", "keyValue", "dailyLimit"],
+    });
+    const adminKeyIds = adminKeys.map((k) => k.id);
+    const keyMap = Object.fromEntries(adminKeys.map((k) => [k.id, k]));
 
     if (!adminKeyIds.length) {
       return res.status(200).json({
@@ -293,37 +297,107 @@ exports.statsByKeyDay = async (req, res) => {
       });
     }
 
-    const where = {
+    const scopedKeyIds =
+      Number.isFinite(filterKeyId) && filterKeyId > 0
+        ? adminKeyIds.filter((id) => id === filterKeyId)
+        : adminKeyIds;
+
+    if (!scopedKeyIds.length) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        range: { from: dateFrom, to: dateTo },
+      });
+    }
+
+    const usageWhere = {
       statDate: { [Op.between]: [dateFrom, dateTo] },
       userId: req.user.id,
-      apiKeyId: apiKeyId ? parseInt(apiKeyId, 10) : { [Op.in]: adminKeyIds },
+      apiKeyId: { [Op.in]: scopedKeyIds },
     };
 
-    const rows = await ApiKeyDailyUsage.findAll({
-      where,
-      include: [
-        {
-          model: ApiKey,
-          as: "apiKey",
-          attributes: ["id", "label", "keyValue", "dailyLimit"],
-          where: { userId: req.user.id },
-          required: true,
-        },
-        {
-          model: User,
-          as: "owner",
-          attributes: ["id", "name", "email"],
-        },
+    const createdRange = {
+      [Op.between]: [
+        new Date(`${dateFrom}T00:00:00+07:00`),
+        new Date(`${dateTo}T23:59:59.999+07:00`),
       ],
-      order: [
-        ["statDate", "DESC"],
-        ["requestCount", "DESC"],
-      ],
+    };
+
+    const [usageRows, v3Rows] = await Promise.all([
+      ApiKeyDailyUsage.findAll({
+        where: usageWhere,
+        attributes: ["apiKeyId", "statDate", "requestCount", "userId"],
+        raw: true,
+      }),
+      V3TaskResult.findAll({
+        where: {
+          apiKeyId: { [Op.in]: scopedKeyIds },
+          createdAt: createdRange,
+        },
+        attributes: ["apiKeyId", "status", "createdAt"],
+        raw: true,
+      }),
+    ]);
+
+    const vnDate = (value) =>
+      new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(
+        new Date(value)
+      );
+
+    /** key: `${apiKeyId}|${statDate}` */
+    const merged = new Map();
+
+    const touch = (id, statDate) => {
+      const k = `${id}|${statDate}`;
+      if (!merged.has(k)) {
+        const key = keyMap[id];
+        merged.set(k, {
+          apiKeyId: id,
+          statDate,
+          requestCount: 0,
+          successCount: 0,
+          failedCount: 0,
+          errorCount: 0,
+          resultCount: 0,
+          apiKey: key
+            ? {
+                id: key.id,
+                label: key.label,
+                keyValue: key.keyValue,
+                dailyLimit: key.dailyLimit,
+              }
+            : null,
+        });
+      }
+      return merged.get(k);
+    };
+
+    for (const row of usageRows) {
+      const item = touch(row.apiKeyId, row.statDate);
+      item.requestCount = parseInt(row.requestCount, 10) || 0;
+    }
+
+    for (const row of v3Rows) {
+      if (row.apiKeyId == null) continue;
+      const statDate = vnDate(row.createdAt);
+      if (statDate < dateFrom || statDate > dateTo) continue;
+      const item = touch(row.apiKeyId, statDate);
+      item.resultCount += 1;
+      if (row.status === "success") item.successCount += 1;
+      else if (row.status === "failed") item.failedCount += 1;
+      else if (row.status === "error") item.errorCount += 1;
+    }
+
+    const data = [...merged.values()].sort((a, b) => {
+      if (a.statDate === b.statDate) {
+        return (b.requestCount || 0) - (a.requestCount || 0);
+      }
+      return a.statDate < b.statDate ? 1 : -1;
     });
 
     return res.status(200).json({
       success: true,
-      data: rows,
+      data,
       range: { from: dateFrom, to: dateTo },
     });
   } catch (err) {
