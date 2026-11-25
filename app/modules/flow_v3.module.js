@@ -137,6 +137,7 @@ class FlowAPI {
             flow_url: baseRequest.url,
             flow_auth_token: this.ACCESS_TOKEN,
             body_json: baseRequest.body,
+            type_source:"nguyen"
         };
         if (typeof this.enterpriseCall === "function") {
             return this.enterpriseCall(payload);
