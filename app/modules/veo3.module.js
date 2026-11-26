@@ -6,7 +6,7 @@ class veo3Video {
         this.access_token = access_token;
         this.agent = null;
         if (proxy) {
-            // this.agent = this.buildProxyAgent(proxy);
+            this.agent = this.buildProxyAgent(proxy);
         }
         this.userAgent = (userAgent || "").trim();
         this.secChUa = (secChUa || "").trim();
