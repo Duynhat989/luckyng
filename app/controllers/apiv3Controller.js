@@ -920,7 +920,7 @@ const getMediaLinkDownload = async (req, res) => {
     }
 };
 
-/** Realtime v3 — không đụng /api/flow/request-hope */
+/** Realtime v3 — không đụng /api/fix/request-hope */
 const getHope = async (req, res) => {
     return res.status(200).json({
         success: true,

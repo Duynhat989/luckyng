@@ -13,11 +13,11 @@ const DEFAULT_VIDEO_RATIO = "VIDEO_ASPECT_RATIO_LANDSCAPE";
 /** local = gọi /api/flow của chính app; nano = gọi flow-api.nanoai.pics */
 const FLOW_FIX_PRESETS = {
     local: {
-        baseUrl: "http://localhost:2053/api/flow/",
+        baseUrl: "http://localhost:2053/api/fix/",
         useCallerKey: true,
     },
     nano: {
-        baseUrl: "https://flow-api.nanoai.pics/api/flow/",
+        baseUrl: "https://flow-api.nanoai.pics/api/fix/",
         useCallerKey: false,
     },
 };
