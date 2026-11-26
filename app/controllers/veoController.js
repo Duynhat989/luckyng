@@ -291,6 +291,9 @@ const createFlow = async (req, res) => {
     try {
         const { flow_auth_token, body_json, flow_url, is_proxy = false, proxy = "" } = req.body;
 
+
+        console.log("body_json: ", body_json);
+        
         if (!body_json) return res.status(400).json({ success: false, message: "body_json is required" });
         if (!flow_auth_token) return res.status(400).json({ success: false, message: "flow_auth_token is required" });
         if (!flow_url) return res.status(400).json({ success: false, message: "flow_url is required" });
